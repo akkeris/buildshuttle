@@ -71,7 +71,6 @@ async function delete_job_if_exists(app_name, app_uuid) {
         console.error(e)
         return null
       }
-      
     } else if (e instanceof httph.NotFoundError) {
       return null
     } else {

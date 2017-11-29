@@ -30,7 +30,7 @@ describe("builds: create, status, result, stop, delete", function() {
       let data = Buffer.alloc(0)
       req.on('data', (x) => data = Buffer.concat([data, x]))
       req.on('end', () => {
-        last_payload = {url:req.url, data:data.toString("utf8")}
+        last_payload = {url:req.url, headers:req.headers, data:data.toString("utf8")}
         res.writeHead(200, {})
         res.end()
       })
@@ -52,6 +52,7 @@ describe("builds: create, status, result, stop, delete", function() {
       "sources":"",
       "build_options":"",
       "callback":ngrok_url,
+      "callback_auth":"hello123",
       "gm_registry_host":process.env.TEST_GM_REGISTRY_HOST,
       "gm_registry_repo":process.env.TEST_GM_REGISTRY_REPO,
       "docker_registry":"docker.io/akkeris/test-sample:latest",
@@ -144,6 +145,7 @@ describe("builds: create, status, result, stop, delete", function() {
       "sources":"",
       "build_options":"",
       "callback":ngrok_url,
+      "callback_auth":"hello123",
       "gm_registry_host":process.env.TEST_GM_REGISTRY_HOST,
       "gm_registry_repo":process.env.TEST_GM_REGISTRY_REPO,
       "docker_registry":"docker.io/akkeris/test-sample:latest",
@@ -225,6 +227,7 @@ describe("builds: create, status, result, stop, delete", function() {
       "sources":"",
       "build_options":"",
       "callback":ngrok_url,
+      "callback_auth":"hello123",
       "gm_registry_host":process.env.TEST_GM_REGISTRY_HOST,
       "gm_registry_repo":process.env.TEST_GM_REGISTRY_REPO,
       "docker_registry":"docker.io/akkeris/test-sample-does-not-exist:latest",
@@ -247,6 +250,7 @@ describe("builds: create, status, result, stop, delete", function() {
       if(last_payload !== null) {
         let data = JSON.parse(last_payload.data);
         if(data.status !== 'pending') {
+          expect(last_payload.headers['authorization']).to.equal('hello123')
           last_payload = null
           expect(data.id).to.be.a('number')
           expect(data.type).to.equal('jenkins')

@@ -45,6 +45,7 @@ With payload:
   repo, 
   org, 
   callback,
+  callback_auth,
   build_uuid, 
   app_uuid, 
   sources, 
