@@ -94,6 +94,11 @@
           <description>Call back URL with status information</description>
           <defaultValue></defaultValue>
         </hudson.model.StringParameterDefinition>
+         <hudson.model.StringParameterDefinition>
+          <name>callback_auth</name>
+          <description>Call back auth header</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
       </parameterDefinitions>
     </hudson.model.ParametersDefinitionProperty>
     <hudson.plugins.throttleconcurrents.ThrottleJobProperty plugin="throttle-concurrents@1.9.0">
@@ -113,7 +118,7 @@
     <script>node(&apos;docker&apos;) {
   try {
   def imageTag = &quot;${gm_registry_repo}/${app}-${app_uuid}:0.${env.BUILD_NUMBER}&quot;
-  sh &quot;curl -X POST ${callback} -d &apos;{\&quot;id\&quot;:${env.BUILD_NUMBER}, \&quot;type\&quot;:\&quot;jenkins\&quot;, \&quot;building\&quot;:true, \&quot;status\&quot;:\&quot;pending\&quot;}&apos; || true&quot;
+  sh &quot;curl -X POST ${callback} -H &apos;Authorization: ${callback_auth}&apos; -d &apos;{\&quot;id\&quot;:${env.BUILD_NUMBER}, \&quot;type\&quot;:\&quot;jenkins\&quot;, \&quot;building\&quot;:true, \&quot;status\&quot;:\&quot;pending\&quot;}&apos; || true&quot;
   if(docker_registry == &quot;&quot;) {
      stage &apos;Retrieving source code&apos;
      writeFile file:&quot;code_url&quot;, text:sources
@@ -149,10 +154,10 @@
       }
       sh &quot;docker rmi ${imageTag}&quot;
   }
-  sh &quot;curl -X POST ${callback} -d &apos;{\&quot;id\&quot;:${env.BUILD_NUMBER}, \&quot;type\&quot;:\&quot;jenkins\&quot;, \&quot;building\&quot;:true, \&quot;status\&quot;:\&quot;succeeded\&quot;}&apos; || true&quot;
+  sh &quot;curl -X POST ${callback} -H &apos;Authorization: ${callback_auth}&apos; -d &apos;{\&quot;id\&quot;:${env.BUILD_NUMBER}, \&quot;type\&quot;:\&quot;jenkins\&quot;, \&quot;building\&quot;:true, \&quot;status\&quot;:\&quot;succeeded\&quot;}&apos; || true&quot;
   } catch (err) {
     currentBuild.result = 'FAILURE'
-    sh &quot;curl -X POST ${callback} -d &apos;{\&quot;id\&quot;:${env.BUILD_NUMBER}, \&quot;type\&quot;:\&quot;jenkins\&quot;, \&quot;building\&quot;:false, \&quot;status\&quot;:\&quot;failed\&quot;}&apos; || true&quot;
+    sh &quot;curl -X POST ${callback} -H &apos;Authorization: ${callback_auth}&apos; -d &apos;{\&quot;id\&quot;:${env.BUILD_NUMBER}, \&quot;type\&quot;:\&quot;jenkins\&quot;, \&quot;building\&quot;:false, \&quot;status\&quot;:\&quot;failed\&quot;}&apos; || true&quot;
   }
   step([$class: &apos;WsCleanup&apos;])
 }
