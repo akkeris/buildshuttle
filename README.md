@@ -1,6 +1,8 @@
 # Akkeris Build Shuttle
 
-The build shuttle is a private API used by the app controller to cache builds and abstract out jenkins from the main code body of the app controller.
+The build shuttle is a private API used by the app controller to cache builds and abstract out jenkins from the main code body of the app controller. 
+
+Requires a jenkins build server with a service account, in addition the jenkins instance must have a user named `akkeris-build-bot` capable of writing to the DOCKER_REGISTRY_HOST and DOCKER_REPO environment variables set in the app controller.
 
 **NEVER:** Hit these API end points on this directly! 
 
