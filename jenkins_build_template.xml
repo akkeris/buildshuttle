@@ -135,7 +135,7 @@
            sh &quot;echo -n \&quot;Generating build for ${app} for space ${space} build uuid ${build_uuid}\&quot;&quot;
            sh &quot;echo -n \&quot;Getting source code for ${repo}/${branch} SHA ${sha}... \&quot;&quot;
         
-           docker.withRegistry(&apos;https://${gm_registry_host}&apos;, &apos;akkeris-build-bot&apos;) {
+           docker.withRegistry(&quot;https://${gm_registry_host}&quot;, &apos;akkeris-build-bot&apos;) {
                def builder = docker.build(&quot;${imageTag}&quot;)
                builder.push()
            }
