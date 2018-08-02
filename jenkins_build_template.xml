@@ -149,7 +149,7 @@
           sh &quot;docker login -u ${docker_login} -p ${docker_password}&quot;
         }
         
-        docker.withRegistry(&apos;https://${gm_registry_host}&apos;, &apos;akkeris-build-bot&apos;) {
+        docker.withRegistry(&quot;https://${gm_registry_host}&quot;, &quot;akkeris-build-bot&quot;) {
           sh &quot;docker pull ${docker_registry}&quot;
           sh &quot;docker tag ${docker_registry} ${imageTag}&quot;
           def newImg = docker.image(&quot;${imageTag}&quot;)
