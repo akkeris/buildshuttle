@@ -119,13 +119,6 @@
   try {
   def imageTag = &quot;${gm_registry_repo}/${app}-${app_uuid}:0.${env.BUILD_NUMBER}&quot;
   sh &quot;curl -X POST ${callback} -H &apos;Authorization: ${callback_auth}&apos; -d &apos;{\&quot;id\&quot;:${env.BUILD_NUMBER}, \&quot;type\&quot;:\&quot;jenkins\&quot;, \&quot;building\&quot;:true, \&quot;status\&quot;:\&quot;pending\&quot;}&apos; || true&quot;
-
-  if(env.BUILD_NUMBER == 1 || env.BUILD_NUMBER == &quot;1&quot;) {
-    withCredentials([string(credentialsId: &apos;registry-api-token&apos;, variable: &apos;API_TOKEN&apos;)]) {
-      sh &quot;curl -X POST https://${gm_registry_host}/api/v1/repository -H &apos;Content-Type: application/json&apos; -H &apos;Accept: application/json&apos; -H &apos;Authorization: Bearer ${API_TOKEN}&apos; -d &apos;{\&quot;description\&quot;:\&quot;\&quot;, \&quot;repo_kind\&quot;:\&quot;image\&quot;, \&quot;repository\&quot;:\&quot;${app}-${app_uuid}\&quot;, \&quot;namespace\&quot;:\&quot;${gm_registry_repo}\&quot;,\&quot;visibility\&quot;:\&quot;public\&quot;}&apos;&quot;
-    }
-  }
-
   if(docker_registry == &quot;&quot;) {
      stage &apos;Retrieving source code&apos;
      writeFile file:&quot;code_url&quot;, text:sources
