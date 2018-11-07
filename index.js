@@ -53,7 +53,7 @@ async function create_job_if_needed(app_name, app_uuid) {
 }
 
 // private THIS ALSO ASSUMES THE APPLICATION EXISTS!!
-//          THIS CAN BE DANGEROUS TO RUN IF THE APPLICAITON DOES NOT!
+//          THIS CAN BE DANGEROUS TO RUN IF THE APPLICATION DOES NOT!
 async function delete_job_if_exists(app_name, app_uuid) {
   try {
     let build_info = await check_job_exists(app_name, app_uuid)
