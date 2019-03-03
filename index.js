@@ -35,7 +35,7 @@ async function check_job_exists(app_name, app_uuid) {
 // private  ASSUMES THE APPLICATIN EXISTS!! 
 //          THIS IS DANGEROUS IF YOU EXECUTE IT WITHOUT
 //          CHECKING IF THE APP EXISTS FIRST.
-const job_config = fs.readFileSync('jenkins_build_template.xml').toString('utf8');
+const job_config = process.env.REGISTRY_NOAUTH ? fs.readFileSync('jenkins_build_template_noauth.xml').toString('utf8') : fs.readFileSync('jenkins_build_template.xml').toString('utf8');
 async function create_job_if_needed(app_name, app_uuid) {
   try { 
     return await check_job_exists(app_name, app_uuid);
