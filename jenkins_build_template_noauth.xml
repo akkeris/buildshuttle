@@ -136,7 +136,7 @@
            sh &quot;echo -n \&quot;Getting source code for ${repo}/${branch} SHA ${sha}... \&quot;&quot;
         
            docker.withRegistry(&quot;https://${gm_registry_host}&quot;) {
-               def builder = docker.build(&quot;${imageTag}&quot;)
+               builder = docker.build(&quot;${imageTag}&quot;)
                builder.push()
            }
            sh &quot;docker rmi ${imageTag}&quot;
@@ -152,7 +152,7 @@
         docker.withRegistry(&quot;https://${gm_registry_host}&quot;) {
           sh &quot;docker pull ${docker_registry}&quot;
           sh &quot;docker tag ${docker_registry} ${imageTag}&quot;
-          def newImg = docker.image(&quot;${imageTag}&quot;)
+          newImg = docker.image(&quot;${imageTag}&quot;)
           newImg.push()
         }
         sh &quot;docker rmi ${imageTag}&quot;
