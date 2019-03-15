@@ -1,10 +1,4 @@
 'use strict'
-
-process.env.S3_LOCATION="maru-ud37bafb4.s3.amazonaws.com"
-process.env.S3_SECRET_KEY="ZH+Ps/JdtDGA3I9fu2ZlSo/FzuG4rNRd2cXpI3ls"
-process.env.S3_ACCESS_KEY="AKIAJGWXKIBZCPSPIC5Q"
-process.env.S3_BUCKET="maru-ud37bafb4"
-
 const express = require('express');
 const app = express();
 const dockerode = require('dockerode');
