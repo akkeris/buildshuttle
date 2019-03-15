@@ -1,3 +1,100 @@
+
+## Creating a build
+
+### Request
+
+```
+POST /:app_id/:build_id
+{
+  "webhooks":{
+    "status":"https://token@example.com",
+    "logs":"https://user:pass@example.com",
+  },
+  "metadata":"deploymentt-namespacce",
+  "human_readable_info":"Build #3 - https://example.com/repo.git sha #abcdef134",
+  "arguments":{"X":"Y"},
+  "source":{
+    "url":"docker://user:pass@example.com/org/repo:tag",
+  },
+  "destination":{
+    "image":"docker://user:pass@example.com/org/repo:tag",
+  },
+}
+```
+
+The logs and status end point can also take an array. They support https, http and kafka protocols.  The kafka topic is determined by the path, to support multiple kafka brokers use the `failover:` scheme.  For example, `failover(kafka://10.0.0.0.1:9092/buildlogs, kafka://10.0.0.0.2:9092/buildlogs, kafka://10.0.0.0.3:9092/buildlogs)` Note that over `http` and `https` logs are streamed, meaning the connection is held open and as logs are produced the are flushed.  This requires an end point that can maintain more of a socket `chunked` http connection. The log data is not structured but raw text.
+
+```
+POST /:app_id/:build_id
+{
+  "webhooks":{
+    "status":"https://token@example.com",
+    "logs":["https://user:pass@example.com","kafka://10.0.0.1:9092/buildlogs"],
+  },
+  "metadata":"deploymentt-namespacce",
+  "human_readable_info":"Build #3 - https://example.com/repo.git sha #abcdef134",
+  "arguments":{"X":"Y"},
+  "source":{
+    "url":"docker://user:pass@example.com/org/repo:tag",
+  },
+  "destination":{
+    "url":"docker://user:pass@example.com/org/repo:tag",
+  },
+}
+```
+
+The `source.url` and `destionation.url` are used to specify what to build and where to push it to. The `source.url` supports `http`, `https` and `docker`. The `destionation.url` only supports `docker` scheme. The `metadata` field is passed back to the `status` and `logs` webhooks. This can be any data to help identify information coming back. The `arguments` field are build environment variables that should be added during the build process. These are merged with the `EXTRA_BUILD_ARGS` config setting and passed into the build.
+
+### Status Webhook
+
+```
+POST
+{
+  "id":".. metadata ..",
+  "type":"build system",
+  "building":"true/false",
+  "status":"pending|queued|timedout|failed|succeeded"
+}
+```
+
+### Responses
+
+**200** OK
+
+```
+{
+    "status":"OK"
+}
+```
+
+**400** Required field missing
+
+## Stopping a build
+
+### Request
+
+```
+DELETE /:app_id/:build_id
+```
+
+### Response
+
+**200** OK
+
+```
+{
+    "status":"OK"
+}
+```
+
+**422** The build is not running
+
+
+
+
+
+
+
 # Akkeris Build Shuttle
 
 The build shuttle is a private API used by the app controller to cache builds and abstract out jenkins from the main code body of the app controller. 
