@@ -85,3 +85,27 @@ This will return the payload sources, this is only fetched by accompanying syste
 
 Gets the logs for the build.
 
+## Deploying
+
+Deploying the buildshuttle in kubernetes requires creating a configmap and then deploying the manifest in `manifests/kubernetes.yaml`. This assumes your namespace for deployment is `akkeris-system`.
+
+```
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: buildshuttle
+  namespace: akkeris-system
+data:
+  S3_ACCESS_KEY: ...
+  S3_BUCKET: ...
+  S3_LOCATION: ...
+  S3_REGION: ...
+  S3_SECRET_KEY: ...
+```
+
+Save the above yaml file with real values into `configmap.yaml`. 
+Then run `kubectl create -f ./configmap.yaml -n akkeris-system --context [cluster]`. 
+Now deploy the manifest by running `kubectl create -f ./manifests/kubernetes.yaml -n akkeris-system --context [cluster]`. 
+Remember to replace `[cluster]` with your cluster name.
+
+
