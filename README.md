@@ -2,17 +2,18 @@
 
 The build shuttle is a private API used by the controller-api to build docker images from sources.
 
-## Environment Vars:
+## Configuration:
 
 * `PORT` - The port number to use to listen to new builds.
 * `NO_CACHE` - Whether to cache layers as much as possible during builds. If set to `true` docker build will not cache the pull or build.
 * `DOCKER_BUILD_IMAGE` - The docker image to use when spinning up worker nodes, the image defaults to `akkeris/buildshuttle:latest`
-* `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_LOCATION` - Amazon S3 service to use to store build sources
-* `BUILD_SHUTTLE_HOST` - The host of the alamo build shuttle.
+* `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_LOCATION` - Amazon S3 service to use to store build sources. Note that during tests it uses a temporary folder on the file system to simulate storing and reading from S3 and therefore the S3 services are not required for tests.
 
 ## Starting:
 
-npm start
+```bash
+$ npm start
+```
 
 ## Testing
 
@@ -25,8 +26,8 @@ You'll need to set the additional environment variables (minus amazon s3 stuff, 
 * `NGROK_TOKEN` - In order to hear webhooks, a NGROK token is necessary, see www.ngrok.com for more information.
 * `CODACY_PROJECT_TOKEN` - to report code coverage set this token, otherwise reports are produced locally.
 
-```
-npm test
+```bash
+$ npm test
 ```
 
 ## API
@@ -47,6 +48,7 @@ With payload:
   org, 
   callback,
   callback_auth,
+  kafka_hosts,
   build_uuid, 
   app_uuid, 
   sources,
