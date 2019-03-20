@@ -8,6 +8,8 @@ The build shuttle is a private API used by the controller-api to build docker im
 * `NO_CACHE` - Whether to cache layers as much as possible during builds. If set to `true` docker build will not cache the pull or build.
 * `DOCKER_BUILD_IMAGE` - The docker image to use when spinning up worker nodes, the image defaults to `akkeris/buildshuttle:latest`
 * `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_LOCATION` - Amazon S3 service to use to store build sources. Note that during tests it uses a temporary folder on the file system to simulate storing and reading from S3 and therefore the S3 services are not required for tests.
+* `EXTRA_BUILD_ARGS` - A json object where each key:value pair defines a new environment variable (ARG in docker) that is injected into the build. Note: sensitive information should not be injected should anyone have access to the resulting docker image.
+* `MAXIMUM_PARALLEL_BUILDS` - The maximum amount of parallel builds, this defaults to 4.
 
 ## Starting:
 
@@ -103,9 +105,23 @@ data:
   S3_SECRET_KEY: ...
 ```
 
-Save the above yaml file with real values into `configmap.yaml`. 
-Then run `kubectl create -f ./configmap.yaml -n akkeris-system --context [cluster]`. 
-Now deploy the manifest by running `kubectl create -f ./manifests/kubernetes.yaml -n akkeris-system --context [cluster]`. 
-Remember to replace `[cluster]` with your cluster name.
+Save the above yaml file with real values into `configmap.yaml`.  Then run `kubectl create -f ./configmap.yaml -n akkeris-system --context [cluster]`.  Now deploy the manifest by running `kubectl create -f ./manifests/kubernetes.yaml -n akkeris-system --context [cluster]`.  Remember to replace `[cluster]` with your cluster name.
 
+## Administrating
+
+When a new build occurs the build shuttle will create a docker "sibling" container. This container is visible to docker but not necessarily visible to kubernetes scheduler (it's a bit complex, but sometimes it is, but it's not gauranteed).  To account for this, please take the following pre-cautions, this can be done before or after deployment.
+
+**Dedicating nodes to builds**
+
+Create a node(s) with `akkeris.io/node-role=build` annotation. The buildshuttle (during scheduling) will prefer to be on these nodes, but will not refuse to deploy onto others.
+
+**Containing the build workers**
+
+Each worker node has a limit of `500m` cpu (1/2 cpu, or cpu period of 100000, or cpu quota of 50000) and `1Gb` of memory. However, kubernetes is unaware of the underlying request and limits, therefore its scheduler can potentially overcommit the node the build shuttle is on accidently. One way of overcoming this is by making the request and limits of the build shuttle manfiest in (`manifests/kubernetes.yaml`) to include the limits and request of all the potential build workers it might create. 
+
+If for example you plan on having a maximum of 4 parallel jobs, the requests for the buildshuttle should be `125m * 4 = 500m` and `500Mi * 4 = 2Gi` and the limits `500m * 4 = 2000m` and `1Gi * 4 = 4Gi`. You can adjust the maximum parallel jobs in the environment setting `MAXIMUM_PARALLEL_BUILDS`. This is (by default) set to 4.
+
+**Fail safe precautions**
+
+You may also want to consider tainting the node containing the build shuttle.  This is a fail-save precaution that can be taken which will prevent the kube scheduler from accidently overcommiting the node that the buildshuttle is on.
 

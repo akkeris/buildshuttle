@@ -61,6 +61,7 @@ describe("creating builds", function() {
       await test.wait()
     }
     test.events.removeListener('callback', listener)
+    test.events.removeAllListeners('callback')
   });
   it("test creating multiple builds", async () => {
     test.events.removeAllListeners('callback')
@@ -152,6 +153,7 @@ describe("creating builds", function() {
       await test.wait()
     }
     test.events.removeListener('callback', listener)
+    test.events.removeAllListeners('callback')
   });
   it("ensure build source code can be recieved post-build", async () => {
     let code = await request("http://localhost:9000/56bce159-87a7-437f-bed3-2da4e44d9cf6");

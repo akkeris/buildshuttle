@@ -177,7 +177,16 @@ async function sendStatus(url, authorization, id, status, building) {
   }
 }
 
+function log(...args) {
+  if(process.env.TEST_MODE) {
+    console.log('    -', ...args)
+  } else {
+    console.log(...args)
+  }
+}
+
 module.exports = {
+  log,
   haveObject,
   getObject,
   putObject,

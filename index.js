@@ -13,17 +13,17 @@ async function stopDockerBuild(container) {
   try {
     await container.stop({"t":0});
   } catch (e) {
-    console.log('    - Stopping container on stop failed:', e.message)
+    common.log('Stopping container on stop failed:', e.message)
   }
   try {
     await container.remove();
   } catch (e) {
     if(!e.message.includes("is already in progress") && !e.message.includes("no such container")) {
-      console.log('    - Removing container on stop failed:', e.message)
+      common.log('Removing container on stop failed:', e.message)
       try {
         await container.remove({"force":true});
       } catch (ee) {
-        console.log('    - Removing container forcefully on stop failed:', ee.message)
+        common.log('Removing container forcefully on stop failed:', ee.message)
       }
     }
   }
@@ -61,35 +61,40 @@ async function createBuild(req, res) {
     await Promise.all(containers.map(async (containerInfo) => {
       if(containerInfo.Names.includes(`/${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`) || containerInfo.Names.includes(`${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`)) {
         try {
-          console.warn('    - removing stale container,', containerInfo.Names.join(','));
+          common.log('Removing stale container,', containerInfo.Names.join(','));
           let c = docker.getContainer(containerInfo.Id);
           await stopDockerBuild(c);
           await c.wait({"condition":"removed"});
         } catch (e) {
-          console.warn(`    - Warning: Unable to remove container ${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`);
+          common.log(`Warning: Unable to remove container ${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`);
         }
       }
     }))
     let timeout = null;
-    console.log(`    - Build starting: ${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`);
+    common.log(`Build starting: ${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`);
+
+    common.sendStatus(req.body.callback, req.body.callback_auth, req.body.build_number, 'pending', false);
     docker.run(dockerBuildImage, ['node', 'worker.js'], process.stdout, env, async (err, data, container) => {
       clearInterval(timeout);
       timeout = null;
       if (err) {
-        console.error('Running worker returned with an error:');
-        return console.error(err);
+        return common.log(`Running worker returned with an error: ${err.message}\n${err.stack}`);
       }
       try {
         await container.remove();
       } catch (e) {
         if(!e.message.includes("is already in progress") && !e.message.includes("no such container")) {
-          console.log('Removing after build finished failed:', e.message);
+          common.log('Removing after build finished failed:', e.message);
         }
       }
       if (data && data.StatusCode !== 0) {
+        common.log(`Build failed: ${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`);
         common.sendStatus(req.body.callback, req.body.callback_auth, req.body.build_number, 'failed', false);
+      } else {
+        common.log(`Build succeeded: ${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`);
+        common.sendStatus(req.body.callback, req.body.callback_auth, req.body.build_number, 'succeeded', false);
       }
-      console.log(`    - Build finished: ${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`);
+      common.log(`Build finished (code: ${data ? data.StatusCode : 'unknown'}): ${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`);
     }).on('start', (container) => {
       res.send({"status":"ok"});
       timeout = setTimeout(() => {
@@ -100,7 +105,7 @@ async function createBuild(req, res) {
       }, 20 * 60 * 1000); // 20 minute timeout
     })
   } catch (e) {
-    console.error(`Failed to submit build.\n${e}`);
+    common.log(`Failed to submit build.\n${e}`);
     res.status(500).send({"status":"Internal Server Error"});
   }
 }
@@ -109,12 +114,12 @@ async function getBuild(req, res) {
   try {
     let stream = await common.getObject(req.params.build)
     stream.on('error', (err) => {
-      console.log('Error getting build', err);
+      common.log('Error getting build', err);
       res.status(404).send({"status":"Not Found"});
     });
     stream.pipe(res);
   } catch (e) {
-    console.error('failed to get build:', e);
+    common.log('failed to get build:', e);
     res.status(404).send({"status":"Not Found"});
   }
 }
@@ -142,12 +147,12 @@ async function getBuildLogs(req, res) {
   try {
     let stream = await common.getObject(`${req.params.app_id}-${req.params.number}.logs`)
     stream.on('error', (err) => {
-      console.log('Error fetching build logs', err);
+      common.log('Error fetching build logs', err);
       res.status(404).send({"status":"Not Found"});
     });
     stream.pipe(res);
   } catch (e) {
-    console.error('failed to get build logs:', e);
+    common.log('failed to get build logs:', e);
     res.status(404).send({"status":"Not Found"});
   }
 }

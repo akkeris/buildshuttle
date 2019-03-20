@@ -37,8 +37,19 @@ async function build(payload) {
     fs.writeFileSync('/tmp/build/Dockerfile', newDockerFile.join('\n'))
     let repo = `${payload.gm_registry_host}/${payload.gm_registry_repo}/${payload.app}-${payload.app_uuid}`;
     let tag = `0.${payload.build_number}`;
-    
-    let build_options = { buildargs:new_build_args, t:`${repo}:${tag}` }
+    let build_options = { 
+      buildargs:new_build_args, 
+      t:`${repo}:${tag}`,
+      labels:{
+        "app":payload.app,
+        "space":payload.space,
+        "build_uuid":payload.build_uuid,
+        "app_uuid":payload.app_uuid,
+      },
+      cpuperiod:100000, 
+      cpuquota:50000,    // 50000/100000 or (1/2 cpu)
+      memory:1073741824, // 1 gigabyte memory
+    }
     if (process.env.TEST_MODE || process.env.NO_CACHE) {
       build_options.nocache = true;
     }
@@ -49,39 +60,42 @@ async function build(payload) {
     ]);
     await common.follow(await (docker.getImage(`${repo}:${tag}`)).push({tag}, undefined, payload.gm_registry_auth), 
       common.sendLogs.bind(null, payload, 'push'));
-    common.sendStatus(payload.callback, payload.callback_auth, payload.build_number, 'succeeded', true);
     common.closeLogs(payload);
   } catch (e) {
-    console.error(`    - Build failed for ${payload.app} ${payload.app_uuid} ${payload.build_number}\n${e.message}\n${e.stack}\n`)
-    common.sendStatus(payload.callback, payload.callback_auth, payload.build_number, 'failed', false);
+    common.log(`Error during build (docker build process): ${e.message}\n${e.stack}`)
     common.closeLogs(payload);
+    process.exit(1);
   }
 }
 
 async function buildFromDocker(payload) {
-  let parsedUrl = new url.parse(payload.sources);
-  let pullAuth = {}
-  if ( parsedUrl.auth ) {
-    pullAuth = {"username":parsedUrl.auth.split(':')[0], "password":parsedUrl.auth.split(':')[1]}
+  try {
+    let parsedUrl = new url.parse(payload.sources);
+    let pullAuth = {}
+    if ( parsedUrl.auth ) {
+      pullAuth = {"username":parsedUrl.auth.split(':')[0], "password":parsedUrl.auth.split(':')[1]}
+    }
+    if (payload.docker_login) {
+      pullAuth = {"username":payload.docker_login, "password":payload.docker_password}
+    }
+    await common.follow(await docker.pull(payload.sources.replace('docker://', ''), {}, undefined, pullAuth), 
+      common.sendLogs.bind(null, payload, 'pull'));
+    let repo = `${payload.gm_registry_host}/${payload.gm_registry_repo}/${payload.app}-${payload.app_uuid}`;
+    let tag = `0.${payload.build_number}`;
+    await (docker.getImage(payload.sources.replace('docker://', ''))).tag({repo, tag});
+    await (docker.getImage(payload.sources.replace('docker://', ''))).tag({repo, tag:'latest'});
+    await common.follow(
+      await (docker.getImage(`${repo}:${tag}`)).push({tag}, undefined, payload.gm_registry_auth), 
+      common.sendLogs.bind(null, payload, 'push'));
+    await common.follow(
+      await (docker.getImage(`${repo}:latest`)).push({tag:'latest'}, undefined, payload.gm_registry_auth), 
+      common.sendLogs.bind(null, payload, 'push'));
+    common.closeLogs(payload);
+  } catch (e) {
+    common.log(`Error during build (from docker): ${e.message}\n${e.stack}`)
+    common.closeLogs(payload);
+    process.exit(1);
   }
-  if (payload.docker_login) {
-    pullAuth = {"username":payload.docker_login, "password":payload.docker_password}
-  }
-  await common.follow(await docker.pull(payload.sources.replace('docker://', ''), {}, undefined, pullAuth), 
-    common.sendLogs.bind(null, payload, 'pull'));
-  let repo = `${payload.gm_registry_host}/${payload.gm_registry_repo}/${payload.app}-${payload.app_uuid}`;
-  let tag = `0.${payload.build_number}`;
-  await (docker.getImage(payload.sources.replace('docker://', ''))).tag({repo, tag});
-  await (docker.getImage(payload.sources.replace('docker://', ''))).tag({repo, tag:'latest'});
-  await common.follow(
-    await (docker.getImage(`${repo}:${tag}`)).push({tag}, undefined, payload.gm_registry_auth), 
-    common.sendLogs.bind(null, payload, 'push'));
-  await common.follow(
-    await (docker.getImage(`${repo}:latest`)).push({tag:'latest'}, undefined, payload.gm_registry_auth), 
-    common.sendLogs.bind(null, payload, 'push'));
-  common.sendStatus(payload.callback, payload.callback_auth, payload.build_number, 'succeeded', true);
-  console.log(`    - Build succeeded for ${payload.app} ${payload.app_uuid} ${payload.build_number}`)
-  common.closeLogs(payload);
 }
 
 async function buildFromStream(payload, stream) {
@@ -89,9 +103,8 @@ async function buildFromStream(payload, stream) {
   dest.on('close', () => build(payload));
   stream.pipe(dest);
   stream.on('error', (err) => {
-    console.error(`    - Build failed for ${payload.app} ${payload.app_uuid} ${payload.build_number}. Failed to fetch stream.\n${err}`)
-    common.sendStatus(payload.callback, payload.callback_auth, payload.build_number, 'failed', false);
-    common.closeLogs(payload);
+    common.log(`Error during build (attempting to stream sources): ${e.message}\n${e.stack}`);
+    process.exit(1);
   })
 }
 
@@ -101,10 +114,9 @@ async function buildFromBuffer(payload, buffer) {
 }
 
 async function execute() {
-  let payload = JSON.parse(Buffer.from(process.env.PAYLOAD, 'base64'))
+  let payload = JSON.parse(Buffer.from(process.env.PAYLOAD, 'base64'));
   try {
     let parsedUrl = new url.parse(payload.sources);
-    common.sendStatus(payload.callback, payload.callback_auth, payload.build_number, 'pending', false);
     if ( parsedUrl.protocol.toLowerCase() === "docker:" ) {
       buildFromDocker(payload);
     } else if ( parsedUrl.protocol === "data:" ) {
@@ -123,12 +135,14 @@ async function execute() {
           return connector.get(res.headers.location, buildFromStream.bind(null, payload));
         }
         buildFromStream(payload);
+      }).on('error', (e) => {
+        common.log(`Error during build (fetching streams): ${e.message}\n${e.stack}`)
+        process.exit(1);
       });
     }
   } catch (e) {
-    console.error(`    - Build failed for ${payload.app} ${payload.app_uuid} ${payload.build_number}\n${e}`)
-    common.sendStatus(payload.callback, payload.callback_auth, payload.build_number, 'failed', false);
-    common.closeLogs(payload);
+    common.log(`Error during build: ${e.message}\n${e.stack}`)
+    process.exit(1);
   }
 }
 

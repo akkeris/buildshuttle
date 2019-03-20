@@ -72,6 +72,7 @@ describe("builds logs", function() {
     }
     expect(changed).to.not.equal(0);
     test.events.removeListener('callback', listener)
+    test.events.removeAllListeners('callback')
     await test.wait(2000)
   });
 

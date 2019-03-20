@@ -7,6 +7,7 @@ metadata:
   labels:
     app: buildshuttle
     name: buildshuttle
+    namespace: akkeris-system
   name: buildshuttle
   namespace: akkeris-system
 spec:
@@ -27,13 +28,25 @@ spec:
       labels:
         app: buildshuttle
         name: buildshuttle
-        version: v1
+        namespace: akkeris-system
       name: buildshuttle
     spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: akkeris.io/node-role
+                operator: In
+                values:
+                - build
       containers:
-      - env:        
+      - env:
         - name: PORT
           value: "9000"
+        - name: MAXIMUM_PARALLEL_BUILDS
+          value: "4"
         - name: DOCKER_BUILD_IMAGE
           value: akkeris/buildshuttle:latest
         - name: S3_ACCESS_KEY
@@ -67,6 +80,13 @@ spec:
         ports:
         - containerPort: 9000
           protocol: TCP
+        resources:
+          limits:
+            memory: "4Gi"
+            cpu: "2"
+          requests:
+            memory: "2Gi"
+            cpu: "0.5"
         readinessProbe:
           failureThreshold: 3
           periodSeconds: 10

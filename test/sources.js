@@ -39,8 +39,8 @@ describe("various sources for builds", function() {
         "app":"test3",
         "space":"test3",
         "app_uuid":"56bce159-87a7-437f-bed3-2da4e44d9aaa",
-        "gm_registry_host":"docker.io",
-        "gm_registry_repo":"akkeris",
+        "gm_registry_host":process.env.DOCKER_HOST || "docker.io",
+        "gm_registry_repo":process.env.DOCKER_ORG || "akkeris",
         "gm_registry_auth":{
           "username":process.env.DOCKER_LOGIN,
           "password":process.env.DOCKER_PASS
@@ -113,5 +113,6 @@ describe("various sources for builds", function() {
       await test.wait()
     }
     test.events.removeListener('callback', listener)
+    test.events.removeAllListeners('callback')
   });
 })
