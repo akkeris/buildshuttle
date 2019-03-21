@@ -126,7 +126,7 @@ If for example you plan on having a maximum of 4 parallel jobs, the requests for
 
 ### Fail safe precautions
 
-You may also want to consider tainting the node containing the build shuttle.  This is a fail-save precaution that can be taken which will prevent the kube scheduler from accidently overcommiting the node that the buildshuttle is on.
+You may also want to consider tainting the node containing the build shuttle.  This is a fail-safe precaution that can be taken which will prevent the kube scheduler from accidently overcommiting the node that the buildshuttle is on.
 
 ## References
 
