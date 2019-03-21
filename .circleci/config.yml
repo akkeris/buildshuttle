@@ -6,15 +6,17 @@ jobs:
       docker_layer_caching: true
     steps:
       - checkout
-      - run:
-          name: Grab dependencies
-          command: |
-            which node
-            node -v
-            curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
-            sudo apt-get install -y nodejs
-            nvm use 10
-            node -v
+      - run: |
+            echo 'export NVM_DIR="/opt/circleci/.nvm"' >> $BASH_ENV
+            echo ' [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> $BASH_ENV
+      - run: |
+          node -v
+      - run: |
+          nvm install v10
+          node -v
+          nvm alias default v10
+      - run: |
+          node -v
       - run:
           name: Build application Docker image
           command: |
@@ -22,7 +24,6 @@ jobs:
       - run:
           name: Run tests
           command: |
-            node -v
             npm install
             DOCKER_BUILD_IMAGE=buildshuttle npm test
       - deploy:

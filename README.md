@@ -67,7 +67,6 @@ With payload:
 }
 ```
 
-
 This will trigger a build in a worker container. The `sources` field must be a uri for the sources (http, https, docker://host.com/org/repo:tag, or data uri).
 
 ### Get the build sources
