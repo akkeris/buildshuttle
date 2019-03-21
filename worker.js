@@ -24,7 +24,7 @@ async function build(payload) {
     let new_build_args = {};
     Object.keys(payload.build_args).forEach((x) => {
       new_build_args[x.replace(/([^A-Za-z0-9_]+)/g, "")] = payload.build_args[x];
-    })
+    });
     
     let dockerFile = fs.readFileSync("/tmp/build/Dockerfile").toString("utf8");
     let newDockerFile = [];
@@ -78,17 +78,17 @@ async function buildFromDocker(payload) {
     if (payload.docker_login) {
       pullAuth = {"username":payload.docker_login, "password":payload.docker_password};
     }
-    await common.follow(await docker.pull(payload.sources.replace("docker://", ""), {}, null, pullAuth), 
+    await common.follow(await docker.pull(payload.sources.replace("docker://", ""), {}, undefined, pullAuth), 
       common.sendLogs.bind(null, payload, "pull"));
     let repo = `${payload.gm_registry_host}/${payload.gm_registry_repo}/${payload.app}-${payload.app_uuid}`;
     let tag = `0.${payload.build_number}`;
     await (docker.getImage(payload.sources.replace("docker://", ""))).tag({repo, tag});
     await (docker.getImage(payload.sources.replace("docker://", ""))).tag({repo, tag:"latest"});
     await common.follow(
-      await (docker.getImage(`${repo}:${tag}`)).push({tag}, null, payload.gm_registry_auth), 
+      await (docker.getImage(`${repo}:${tag}`)).push({tag}, undefined, payload.gm_registry_auth), 
       common.sendLogs.bind(null, payload, "push"));
     await common.follow(
-      await (docker.getImage(`${repo}:latest`)).push({tag:"latest"}, null, payload.gm_registry_auth), 
+      await (docker.getImage(`${repo}:latest`)).push({tag:"latest"}, undefined, payload.gm_registry_auth), 
       common.sendLogs.bind(null, payload, "push"));
     common.closeLogs(payload);
   } catch (e) {
