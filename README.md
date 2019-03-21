@@ -43,7 +43,7 @@ $ npm test
 
 With payload:
 
-```
+```javascript
 {
   sha, 
   app,
@@ -93,7 +93,7 @@ Gets the logs for the build.
 
 Deploying the buildshuttle in kubernetes requires creating a configmap and then deploying the manifest in `manifests/kubernetes.yaml`. This assumes your namespace for deployment is `akkeris-system`.
 
-```
+```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:

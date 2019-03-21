@@ -55,6 +55,7 @@ describe("builds logs", function() {
       })
     });
     let changed = 0;
+    await test.wait(2000);
     let logs = await request({"url":"http://localhost:9000/test-abbce159-87a7-437f-bed3-2da4e44dcfff/1/logs"})
     while(pending === false) {
       let l = await request({"url":"http://localhost:9000/test-abbce159-87a7-437f-bed3-2da4e44dcfff/1/logs"})

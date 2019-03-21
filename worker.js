@@ -70,7 +70,7 @@ async function build(payload) {
 
 async function buildFromDocker(payload) {
   try {
-    let parsedUrl = new url.parse(payload.sources);
+    let parsedUrl = url.parse(payload.sources);
     let pullAuth = {};
     if ( parsedUrl.auth ) {
       pullAuth = {"username":parsedUrl.auth.split(":")[0], "password":parsedUrl.auth.split(":")[1]};
@@ -78,17 +78,17 @@ async function buildFromDocker(payload) {
     if (payload.docker_login) {
       pullAuth = {"username":payload.docker_login, "password":payload.docker_password};
     }
-    await common.follow(await docker.pull(payload.sources.replace("docker://", ""), {}, undefined, pullAuth), 
+    await common.follow(await docker.pull(payload.sources.replace("docker://", ""), {}, null, pullAuth), 
       common.sendLogs.bind(null, payload, "pull"));
     let repo = `${payload.gm_registry_host}/${payload.gm_registry_repo}/${payload.app}-${payload.app_uuid}`;
     let tag = `0.${payload.build_number}`;
     await (docker.getImage(payload.sources.replace("docker://", ""))).tag({repo, tag});
     await (docker.getImage(payload.sources.replace("docker://", ""))).tag({repo, tag:"latest"});
     await common.follow(
-      await (docker.getImage(`${repo}:${tag}`)).push({tag}, undefined, payload.gm_registry_auth), 
+      await (docker.getImage(`${repo}:${tag}`)).push({tag}, null, payload.gm_registry_auth), 
       common.sendLogs.bind(null, payload, "push"));
     await common.follow(
-      await (docker.getImage(`${repo}:latest`)).push({tag:"latest"}, undefined, payload.gm_registry_auth), 
+      await (docker.getImage(`${repo}:latest`)).push({tag:"latest"}, null, payload.gm_registry_auth), 
       common.sendLogs.bind(null, payload, "push"));
     common.closeLogs(payload);
   } catch (e) {
@@ -102,10 +102,10 @@ async function buildFromStream(payload, stream) {
   let dest = fs.createWriteStream("/tmp/sources");
   dest.on("close", () => build(payload));
   stream.pipe(dest);
-  stream.on("error", (err) => {
+  stream.on("error", (e) => {
     common.log(`Error during build (attempting to stream sources): ${e.message}\n${e.stack}`);
     process.exit(1);
-  })
+  });
 }
 
 async function buildFromBuffer(payload, buffer) {

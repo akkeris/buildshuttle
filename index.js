@@ -8,7 +8,7 @@ const url = require("url");
 const dockerBuildImage = process.env.DOCKER_BUILD_IMAGE || "akkeris/buildshuttle:latest";
 const builders = [];
 const common = require("./common.js");
-const fs = require('fs');
+const fs = require("fs");
 
 async function stopDockerBuild(container) {
   try {
@@ -117,7 +117,7 @@ async function createBuild(req, res) {
 async function getBuild(req, res) {
   try {
     if (!(/([a-f\d]{8}(-[a-f\d]{4}){3}-[a-f\d]{12}?)/i).test(req.params.build)) {
-      return res.status(400).send({"status":"Bad Request - build uuid is invalid."})
+      return res.status(400).send({"status":"Bad Request - build uuid is invalid."});
     }
     let stream = await common.getObject(req.params.build);
     stream.on("error", (err) => {
@@ -153,7 +153,7 @@ async function stopBuild(req, res) {
     await stopDockerBuildByName(`${req.params.app_id}-${req.params.number}`);
   } catch (e) {
     common.log(`Failed to stop build: ${e.message}\n${e.stack}`);
-    res.status(500).send({"status":"Internal Server Error"})
+    res.status(500).send({"status":"Internal Server Error"});
   }
 }
 
