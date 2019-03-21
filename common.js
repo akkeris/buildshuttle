@@ -24,7 +24,7 @@ async function haveObject(Key) {
       .promise();
     return true;
   } catch (e) {
-    return false
+    return false;
   }
 }
 
