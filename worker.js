@@ -50,7 +50,7 @@ async function build(payload) {
       cpuquota:50000,    // 50000/100000 or (1/2 cpu)
       memory:1073741824, // 1 gigabyte memory
     };
-    if (process.env.TEST_MODE || process.env.NO_CACHE) {
+    if (process.env.TEST_MODE || process.env.NO_CACHE === "true") {
       build_options.nocache = true;
     }
     await Promise.all([

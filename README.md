@@ -24,12 +24,13 @@ $ npm start
 
 You'll need to set the additional environment variables (minus amazon s3 stuff, it'll skip that) for running tests:
 
-*  `DOCKER_LOGIN` - docker repo password to push test images
-*  `DOCKER_PASS` - docker repo login to push test images
-*  `DOCKER_HOST` - the docker host to push images, defaults to docker.io
-*  `DOCKER_ORG` - the docker org to push images, defaults to akkeris
+*  `DOCKER_LOGIN` - Docker repo password to push test images
+*  `DOCKER_PASS` - Docker repo login to push test images
+*  `DOCKER_HOST` - The docker host to push images, defaults to docker.io
+*  `DOCKER_ORG` - The docker org to push images, defaults to akkeris
 *  `NGROK_TOKEN` - In order to hear webhooks, a NGROK token is necessary, see www.ngrok.com for more information.
-*  `CODACY_PROJECT_TOKEN` - to report code coverage set this token, otherwise reports are produced locally.
+*  `CODACY_PROJECT_TOKEN` - To report code coverage set this token, otherwise reports are produced locally.
+*  `SMOKE_TESTS` - Whether to run the smoke tests, set this to `true` to run extra tests.
 
 ```bash
 $ npm test
