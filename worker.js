@@ -62,7 +62,11 @@ async function build(payload) {
       common.sendLogs.bind(null, payload, "push"));
     common.closeLogs(payload);
   } catch (e) {
-    common.log(`Error during build (docker build process): ${e.message}\n${e.stack}`);
+    if(e.message && e.stack) {
+      common.log(`Error during build (docker build process): ${e.message}\n${e.stack}`);
+    } else {
+      common.log(`Error during build (docker build process): ${e}`);
+    }
     common.closeLogs(payload);
     process.exit(1);
   }

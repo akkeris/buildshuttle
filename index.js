@@ -47,6 +47,7 @@ async function stopDockerBuildByName(containerName) {
 }
 
 async function createBuild(req, res) {
+  // TODO: more sanity checks on input.
   if (!req.body.sources || !req.body.app || !req.body.space || !req.body.app_uuid || !req.body.gm_registry_host || !req.body.gm_registry_repo || !req.body.build_number || !req.body.build_uuid) {
     return res.status(400).send({"status":"Bad Request - missing fields."});
   }
@@ -162,7 +163,9 @@ async function getBuildLogs(req, res) {
     // TODO: validate this input.
     let stream = await common.getObject(`${req.params.app_id}-${req.params.number}.logs`);
     stream.on("error", (err) => {
-      common.log("Error fetching build logs", err);
+      if(err.message.indexOf('no such file') === -1) {
+        common.log("Error fetching build logs", err);
+      }
       res.status(404).send({"status":"Not Found"});
     });
     stream.pipe(res);
