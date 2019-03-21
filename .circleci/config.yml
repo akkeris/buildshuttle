@@ -1,16 +1,17 @@
 version: 2
 jobs:
   build:
+    machine:
+      enabled: true
+      docker_layer_caching: true 
     working_directory: /app
-    docker:
-      - image: docker:18.06.3-ce-git
     steps:
       - checkout
-      - setup_remote_docker
       - run:
           name: Grab dependencies
           command: |
-            apk update && apk add --update nodejs && apk add --update npm
+            curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash
+            sudo apt-get install -y nodejs
       - run:
           name: Build application Docker image
           command: |
