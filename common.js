@@ -1,28 +1,27 @@
-const request = require('request');
-let kafka = require('kafka-node');
-const dockerode = require('dockerode');
-const docker = new dockerode({socketPath: '/var/run/docker.sock'});
-const aws = require('aws-sdk');
-const fs = require('fs');
+const request = require("request");
+let kafka = require("kafka-node");
+const DockerOde = require("dockerode");
+const docker = new DockerOde({socketPath: "/var/run/docker.sock"});
+const aws = require("aws-sdk");
+const fs = require("fs");
 
 if(process.env.TEST_MODE) {
-  kafka = require('./test/support/kafka-mock.js')
+  kafka = require("./test/support/kafka-mock.js");
 }
 
-let logStreams = {}
-let logIntervals = {}
-let producers = {}
-
-let inMemoryObject = {}
+let logStreams = {};
+let logIntervals = {};
+let producers = {};
 
 async function haveObject(Key) {
   if(process.env.TEST_MODE) {
-    return fs.existsSync(`/tmp/archives/${Key}`) ? true : false
+    let destFile = `/tmp/archives/${Key}`;
+    return fs.existsSync(destFile) ? true : false;
   }
   try {
     await (new aws.S3({accessKeyId:process.env.S3_ACCESS_KEY, secretAccessKey:process.env.S3_SECRET_KEY}))
       .headObject({Bucket:process.env.S3_BUCKET, Key})
-      .promise()
+      .promise();
     return true;
   } catch (e) {
     return false
@@ -31,59 +30,47 @@ async function haveObject(Key) {
 
 async function getObject(Key) {
   if(process.env.TEST_MODE) {
-    return fs.createReadStream(`/tmp/archives/${Key}`)
+    let destFile = `/tmp/archives/${Key}`;
+    return fs.createReadStream(destFile);
   }
   return await (new aws.S3({accessKeyId:process.env.S3_ACCESS_KEY, secretAccessKey:process.env.S3_SECRET_KEY}))
     .getObject({ Bucket:process.env.S3_BUCKET, Key})
-    .createReadStream()
+    .createReadStream();
 }
 
 async function putObject(Key, Body) {
   if(process.env.TEST_MODE) {
-    let o = fs.createWriteStream(`/tmp/archives/${Key}`)
+    let destFile = `/tmp/archives/${Key}`;
+    let o = fs.createWriteStream(destFile);
     if(Body.pipe) {
-      Body.pipe(o)
+      Body.pipe(o);
     } else {
-      o.write(Body)
+      o.write(Body);
     }
-    o.end()
+    o.end();
     return
   }
   return await (new aws.S3({accessKeyId:process.env.S3_ACCESS_KEY, secretAccessKey:process.env.S3_SECRET_KEY}))
-    .putObject({ Bucket:process.env.S3_BUCKET, Key, ACL:'authenticated-read', ContentType:'application/octet-stream', Body})
-    .promise()
+    .putObject({ Bucket:process.env.S3_BUCKET, Key, ACL:"authenticated-read", ContentType:"application/octet-stream", Body})
+    .promise();
 }
 
 async function follow(stream, onProgress) {
-  return new Promise((resolve, reject) => docker.modem.followProgress(stream, (err, output) => err ? reject(err) : resolve(output), onProgress))
+  return new Promise((resolve, reject) => docker.modem.followProgress(stream, (err, output) => err ? reject(err) : resolve(output), onProgress));
 }
 
 function eventLogMessage(event) {
-  let message = ''
-  if(event.status) {
-    message += event.status;
-  }
-  if(event.progress) {
-    if(event.status) {
-      message += ' ';
-    }
-    message += event.progress;
-  }
-  if(event.stream) {
-    if(event.status || event.progress) {
-      message += ' ';
-    }
-    message += event.stream;
-  }
-  if(event.status || event.progress || event.stream) {
-    message += '\n';
+  let message = [event.status, event.progress, event.stream].filter((x) => !!x).reduce((a, arg) => `${a} ${arg}`, '').trim();
+  if(message !== '') {
+    message = `${message}\n`;
   }
   return message;
 }
 
 function checkQueue(kafkaHost) {
   if(!producers[kafkaHost]) {
-    return console.error(`Error, we started checking a queue that doesnt exist: ${kafkaHost}`)
+    console.error(`Error, we started checking a queue that doesnt exist: ${kafkaHost}`);
+    return;
   }
   if(producers[kafkaHost].queue.length > 0) {
     let messages = producers[kafkaHost].queue.map((x) => {
@@ -91,15 +78,15 @@ function checkQueue(kafkaHost) {
         "metadata":`${x.app}-${x.space}`, 
         "build":x.build, 
         "job":x.build,
-        "message":eventLogMessage(x.event)
-      })
+        "message":eventLogMessage(x.event),
+      });
     });
     producers[kafkaHost].producer.send({"topic":"alamoweblogs", messages}, (err) => { 
       if(err) {
-        console.error(`Unable to send traffic to kafka:\n${$err}`)
+        console.error(`Unable to send traffic to kafka:\n${$err}`);
       }
     })
-    producers[kafkaHost].queue = []
+    producers[kafkaHost].queue = [];
   }
   setTimeout(checkQueue.bind(null, kafkaHost), 2000);
 }
@@ -109,50 +96,50 @@ function getKafkaSendingQueue(kafkaHost) {
     return {queue:[]}; // return a dummy queue.
   }
   if ( !producers[kafkaHost] ) {
-    producers[kafkaHost] = { producer:new kafka.Producer(new kafka.KafkaClient({kafkaHost})), queue:[] }
-    producers[kafkaHost].producer.on('ready', checkQueue.bind(null, kafkaHost))
+    producers[kafkaHost] = { producer:new kafka.Producer(new kafka.KafkaClient({kafkaHost})), queue:[] };
+    producers[kafkaHost].producer.on("ready", checkQueue.bind(null, kafkaHost));
   }
-  return producers[kafkaHost]
+  return producers[kafkaHost];
 }
 
 async function flushLogsToS3(payload) {
-  let build_uuid = payload.build_uuid
+  let build_uuid = payload.build_uuid;
   if(logStreams[build_uuid]) {
-    putObject(`${payload.app}-${payload.app_uuid}-${payload.build_number}.logs`, logStreams[build_uuid])
+    putObject(`${payload.app}-${payload.app_uuid}-${payload.build_number}.logs`, logStreams[build_uuid]);
   }
   logIntervals[build_uuid] = null;
 }
 
 async function sendLogsToS3(payload, event) {
   if(!payload.build_uuid) {
-    return console.error("Unable to send logs to s3, blank build_uuid sent.")
+    return console.error("Unable to send logs to s3, blank build_uuid sent.");
   }
   if(!logIntervals[payload.build_uuid]) {
     logIntervals[payload.build_uuid] = setTimeout(flushLogsToS3.bind(null, payload), 2000);
   }
-  if(!logStreams[payload.build_uuid] && logStreams[payload.build_uuid] !== '') {
-    logStreams[payload.build_uuid] = '';
+  if(!logStreams[payload.build_uuid] && logStreams[payload.build_uuid] !== "") {
+    logStreams[payload.build_uuid] = "";
   }
-  logStreams[payload.build_uuid] += eventLogMessage(event)
+  logStreams[payload.build_uuid] += eventLogMessage(event);
 }
 
 async function sendLogsToKafka(kafkaHost, type, app, space, build, event) {
-  getKafkaSendingQueue(kafkaHost).queue.push({ type, app, space, build, event })
+  getKafkaSendingQueue(kafkaHost).queue.push({ type, app, space, build, event });
 }
 
 async function sendLogs(payload, type, event) {
   if(event.stream) {
-    event.stream = event.stream.toString().replace(/^[\n]+|[\n]+$/g, '');
+    event.stream = event.stream.toString().replace(/^[\n]+|[\n]+$/g, "");
   }
   if(event.status) {
-    event.status = event.status.toString().replace(/^[\n]+|[\n]+$/g, '');
+    event.status = event.status.toString().replace(/^[\n]+|[\n]+$/g, "");
   }
   if(event.progress) {
-    event.progress = event.progress.toString().replace(/^[\n]+|[\n]+$/g, '');
+    event.progress = event.progress.toString().replace(/^[\n]+|[\n]+$/g, "");
   }
   event.type = type;
   sendLogsToKafka(payload.kafka_hosts, event.type, payload.app, payload.space, payload.build_number, event);
-  sendLogsToS3(payload, event)
+  sendLogsToS3(payload, event);
 }
 
 async function closeLogs(payload) {
@@ -160,7 +147,7 @@ async function closeLogs(payload) {
     clearInterval(logIntervals[payload.build_uuid]);
   }
   if(logStreams[payload.build_uuid]) {
-     flushLogsToS3(payload)
+     flushLogsToS3(payload);
   }
   logStreams[payload.build_uuid] = null;
   logIntervals[payload.build_uuid] = null;
@@ -169,19 +156,19 @@ async function closeLogs(payload) {
 async function sendStatus(url, authorization, id, status, building) {
   try {
     if(url) {
-      request({url, headers:{authorization, "content-type":"application/json"}, method:"post", body:JSON.stringify({id, status, building, "type":"buildshuttle"})})
+      request({url, headers:{authorization, "content-type":"application/json"}, method:"post", body:JSON.stringify({id, status, building, "type":"buildshuttle"})});
     }
   } catch (e) {
-    console.error(`Unable to send callback status to ${url}`)
-    console.error(e)
+    console.error(`Unable to send callback status to ${url}`);
+    console.error(e);
   }
 }
 
 function log(...args) {
   if(process.env.TEST_MODE) {
-    console.log('    -', ...args)
+    console.log("    -", ...args);
   } else {
-    console.log(...args)
+    console.log(...args);
   }
 }
 
@@ -196,4 +183,4 @@ module.exports = {
   closeLogs,
   sendLogsToS3,
   follow,
-}
+};

@@ -121,6 +121,14 @@ Each worker node has a limit of `500m` cpu (1/2 cpu, or cpu period of 100000, or
 
 If for example you plan on having a maximum of 4 parallel jobs, the requests for the buildshuttle should be `125m * 4 = 500m` and `500Mi * 4 = 2Gi` and the limits `500m * 4 = 2000m` and `1Gi * 4 = 4Gi`. You can adjust the maximum parallel jobs in the environment setting `MAXIMUM_PARALLEL_BUILDS`. This is (by default) set to 4.
 
-## Fail safe precautions
+### Fail safe precautions
 
 You may also want to consider tainting the node containing the build shuttle.  This is a fail-save precaution that can be taken which will prevent the kube scheduler from accidently overcommiting the node that the buildshuttle is on.
+
+## References
+
+https://jpetazzo.github.io/2015/09/03/do-not-use-docker-in-docker-for-ci/
+
+https://applatix.com/case-docker-docker-kubernetes-part/
+
+https://applatix.com/case-docker-docker-kubernetes-part-2/

@@ -50,7 +50,8 @@ describe("stopping builds", function() {
       })
     });
     await test.wait(2000)
-    await request({'method':'delete', 'uri':'http://localhost:9000/test-56bce159-87a7-437f-bed3-2da4e44d9cf3/1'})
+    let result = await request({'method':'delete', 'uri':'http://localhost:9000/test-56bce159-87a7-437f-bed3-2da4e44d9cf3/1'})
+    expect(result).to.equal('{"status":"ok"}')
     while(pending === false) {
       await test.wait()
     }
