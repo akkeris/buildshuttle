@@ -16,6 +16,9 @@ async function stopDockerBuild(container) {
   } catch (e) {
     common.log("Stopping container on stop failed:", e.message);
   }
+}
+
+async function removeDockerBuild(container) {
   try {
     await container.remove();
   } catch (e) {
@@ -38,6 +41,7 @@ async function stopDockerBuildByName(containerName) {
         common.log("Removing container,", containerInfo.Names.join(","));
         let c = docker.getContainer(containerInfo.Id);
         await stopDockerBuild(c);
+        await removeDockerBuild(c);
         await c.wait({"condition":"removed"});
       } catch (e) {
         common.log(`Warning: Unable to remove container ${containerName}`);
@@ -102,10 +106,15 @@ async function createBuild(req, res) {
       common.log(`Build finished (code: ${data ? data.StatusCode : "unknown"}): ${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`);
     }).on("start", (container) => {
       res.send({"status":"ok"});
-      timeout = setTimeout(() => {
-        if (timeout) {
-          stopDockerBuild(container);
-          common.sendStatus(req.body.callback, req.body.callback_auth, req.body.build_number, "failed", false);
+      timeout = setTimeout(async () => {
+        try {
+          if (timeout) {
+            await stopDockerBuild(container);
+            await removeDockerBuild(container);
+            common.sendStatus(req.body.callback, req.body.callback_auth, req.body.build_number, "failed", false);
+          }
+        } catch (e) {
+          common.log(`Failed to terminate build on timeout: ${e.message}\n${e.stack}`)
         }
       }, 20 * 60 * 1000); // 20 minute timeout
     });

@@ -7,9 +7,31 @@ const https = require("https");
 const { execSync } = require("child_process");
 const fs = require("fs");
 
+function calcBuildArgs(buildArgs) {
+  if (process.env.EXTRA_BUILD_ARGS) {
+    buildArgs = Object.assign(JSON.parse(process.env.EXTRA_BUILD_ARGS), buildArgs);
+  }
+  // Ensure the user cannot submit any obnoxious key values that might corrupt the build.
+  let newBuildArgs = {};
+  Object.keys(buildArgs).forEach((x) => {
+    newBuildArgs[x.replace(/([^A-Za-z0-9_]+)/g, "")] = buildArgs[x];
+  });
+  return newBuildArgs;
+}
+
+function calcDockerFile(newBuildArgs, filePath) {
+  let newDockerFile = [];
+  fs.readFileSync(filePath).toString("utf8").split("\n").map((line) => {
+    newDockerFile.push(line);
+    if(line.startsWith("FROM ")) {
+      newDockerFile = newDockerFile.concat(Object.keys(newBuildArgs).map((x) => `ARG ${x}`));
+    }
+  });
+  return newDockerFile.join("\n");
+}
+
 async function build(payload) {
   try {
-    payload.build_args = payload.build_args || {};
     common.sendLogs(payload, "build", 
       {"status":execSync("tar zxf /tmp/sources -C /tmp/build || unzip /tmp/sources -d /tmp/build", {cwd:"/tmp", stdio:["pipe", "pipe", "pipe"]})});
     // Unzip will put a single directory with the original folder name inside of /tmp/build, for example
@@ -17,42 +39,25 @@ async function build(payload) {
     // will remove all the contents backc to /tmp/build.
     common.sendLogs(payload, "build",
       {"status":execSync("if [ `ls -d */ | wc -l` = \"1\" ]; then if [ `ls . | wc -l` = \"1\" ]; then mv */.[!.]* . || true; mv */* . || true; fi fi", {cwd:"/tmp/build", stdio:["pipe", "pipe", "pipe"]})});
-    if (process.env.EXTRA_BUILD_ARGS) {
-      payload.build_args = Object.assign(JSON.parse(process.env.EXTRA_BUILD_ARGS), payload.build_args);
-    }
-    // Ensure the user cannot submit any obnoxious key values that might corrupt the build.
-    let new_build_args = {};
-    Object.keys(payload.build_args).forEach((x) => {
-      new_build_args[x.replace(/([^A-Za-z0-9_]+)/g, "")] = payload.build_args[x];
-    });
     
-    let dockerFile = fs.readFileSync("/tmp/build/Dockerfile").toString("utf8");
-    let newDockerFile = [];
-    dockerFile.split("\n").map((line) => {
-      newDockerFile.push(line);
-      if(line.startsWith("FROM ")) {
-        newDockerFile = newDockerFile.concat(Object.keys(new_build_args).map((x) => `ARG ${x}`));
-      }
-    });
-    fs.writeFileSync("/tmp/build/Dockerfile", newDockerFile.join("\n"));
+    let newBuildArgs = calcBuildArgs(payload.build_args || {});
+    fs.writeFileSync("/tmp/build/Dockerfile", calcDockerFile(newBuildArgs, "/tmp/build/Dockerfile"));
     let repo = `${payload.gm_registry_host}/${payload.gm_registry_repo}/${payload.app}-${payload.app_uuid}`;
     let tag = `0.${payload.build_number}`;
     let build_options = { 
-      buildargs:new_build_args, 
-      t:`${repo}:${tag}`,
-      labels:{
+      "buildargs":newBuildArgs, 
+      "t":`${repo}:${tag}`,
+      "labels":{
         "app":payload.app,
         "space":payload.space,
         "build_uuid":payload.build_uuid,
         "app_uuid":payload.app_uuid,
       },
-      cpuperiod:100000, 
-      cpuquota:50000,    // 50000/100000 or (1/2 cpu)
-      memory:1073741824, // 1 gigabyte memory
+      "cpuperiod":100000, 
+      "cpuquota":50000,    // 50000/100000 or (1/2 cpu)
+      "memory":1073741824, // 1 gigabyte memory
     };
-    if (process.env.TEST_MODE || process.env.NO_CACHE === "true") {
-      build_options.nocache = true;
-    }
+    build_options.nocache = (process.env.TEST_MODE || process.env.NO_CACHE === "true") ? true : false;
     await Promise.all([
       common.putObject(payload.build_uuid, fs.createReadStream("/tmp/sources")),
       common.follow(await (docker.buildImage({"context":"/tmp/build"}, build_options)),
@@ -62,11 +67,7 @@ async function build(payload) {
       common.sendLogs.bind(null, payload, "push"));
     common.closeLogs(payload);
   } catch (e) {
-    if(e.message && e.stack) {
-      common.log(`Error during build (docker build process): ${e.message}\n${e.stack}`);
-    } else {
-      common.log(`Error during build (docker build process): ${e}`);
-    }
+    common.log(`Error during build (docker build process): ${e.message || ''}\n${e.stack || ''}`);
     common.closeLogs(payload);
     process.exit(1);
   }

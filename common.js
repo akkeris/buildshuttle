@@ -111,15 +111,10 @@ async function flushLogsToS3(payload) {
 }
 
 async function sendLogsToS3(payload, event) {
-  if(!payload.build_uuid) {
-    return console.error("Unable to send logs to s3, blank build_uuid sent.");
-  }
   if(!logIntervals[payload.build_uuid]) {
     logIntervals[payload.build_uuid] = setTimeout(flushLogsToS3.bind(null, payload), 2000);
   }
-  if(!logStreams[payload.build_uuid] && logStreams[payload.build_uuid] !== "") {
-    logStreams[payload.build_uuid] = "";
-  }
+  logStreams[payload.build_uuid] = logStreams[payload.build_uuid] || "";
   logStreams[payload.build_uuid] += eventLogMessage(event);
 }
 
