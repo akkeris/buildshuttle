@@ -8,6 +8,7 @@ const url = require("url");
 const dockerBuildImage = process.env.DOCKER_BUILD_IMAGE || "akkeris/buildshuttle:latest";
 const builders = [];
 const common = require("./common.js");
+const fs = require('fs');
 
 async function stopDockerBuild(container) {
   try {
@@ -106,7 +107,7 @@ async function createBuild(req, res) {
           common.sendStatus(req.body.callback, req.body.callback_auth, req.body.build_number, "failed", false);
         }
       }, 20 * 60 * 1000); // 20 minute timeout
-    })
+    });
   } catch (e) {
     common.log(`Failed to submit build.\n${e}`);
     res.status(500).send({"status":"Internal Server Error"});
@@ -133,7 +134,7 @@ async function getBuild(req, res) {
 async function buildExists(req, res) {
   try {
     if (!(/([a-f\d]{8}(-[a-f\d]{4}){3}-[a-f\d]{12}?)/i).test(req.params.build)) {
-      return res.status(400).send({"status":"Bad Request - build uuid is invalid."})
+      return res.status(400).send({"status":"Bad Request - build uuid is invalid."});
     }
     if(common.haveObject(req.params.build)) {
       res.status(200).end();

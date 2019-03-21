@@ -7,12 +7,12 @@ The build shuttle is a private API used by the controller-api to build docker im
 
 ## Configuration
 
-  * `PORT` - The port number to use to listen to new builds.
-  * `NO_CACHE` - Whether to cache layers as much as possible during builds. If set to `true` docker build will not cache the pull or build.
-  * `DOCKER_BUILD_IMAGE` - The docker image to use when spinning up worker nodes, the image defaults to `akkeris/buildshuttle:latest`
-  * `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_LOCATION` - Amazon S3 service to use to store build sources. Note that during tests it uses a temporary folder on the file system to simulate storing and reading from S3 and therefore the S3 services are not required for tests.
-  * `EXTRA_BUILD_ARGS` - A json object where each key:value pair defines a new environment variable (ARG in docker) that is injected into the build. Note: sensitive information should not be injected should anyone have access to the resulting docker image.
-  * `MAXIMUM_PARALLEL_BUILDS` - The maximum amount of parallel builds, this defaults to 4.
+* `PORT` - The port number to use to listen to new builds.
+* `NO_CACHE` - Whether to cache layers as much as possible during builds. If set to `true` docker build will not cache the pull or build.
+* `DOCKER_BUILD_IMAGE` - The docker image to use when spinning up worker nodes, the image defaults to `akkeris/buildshuttle:latest`
+* `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_LOCATION` - Amazon S3 service to use to store build sources. Note that during tests it uses a temporary folder on the file system to simulate storing and reading from S3 and therefore the S3 services are not required for tests.
+* `EXTRA_BUILD_ARGS` - A json object where each key:value pair defines a new environment variable (ARG in docker) that is injected into the build. Note: sensitive information should not be injected should anyone have access to the resulting docker image.
+* `MAXIMUM_PARALLEL_BUILDS` - The maximum amount of parallel builds, this defaults to 4.
 
 ## Starting
 
@@ -24,12 +24,12 @@ $ npm start
 
 You'll need to set the additional environment variables (minus amazon s3 stuff, it'll skip that) for running tests:
 
-  * `DOCKER_LOGIN` - docker repo password to push test images
-  * `DOCKER_PASS` - docker repo login to push test images
-  * `DOCKER_HOST` - the docker host to push images, defaults to docker.io
-  * `DOCKER_ORG` - the docker org to push images, defaults to akkeris
-  * `NGROK_TOKEN` - In order to hear webhooks, a NGROK token is necessary, see www.ngrok.com for more information.
-  * `CODACY_PROJECT_TOKEN` - to report code coverage set this token, otherwise reports are produced locally.
+* `DOCKER_LOGIN` - docker repo password to push test images
+* `DOCKER_PASS` - docker repo login to push test images
+* `DOCKER_HOST` - the docker host to push images, defaults to docker.io
+* `DOCKER_ORG` - the docker org to push images, defaults to akkeris
+* `NGROK_TOKEN` - In order to hear webhooks, a NGROK token is necessary, see www.ngrok.com for more information.
+* `CODACY_PROJECT_TOKEN` - to report code coverage set this token, otherwise reports are produced locally.
 
 ```bash
 $ npm test

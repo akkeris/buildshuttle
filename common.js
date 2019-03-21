@@ -48,7 +48,7 @@ async function putObject(Key, Body) {
       o.write(Body);
     }
     o.end();
-    return
+    return;
   }
   return await (new aws.S3({accessKeyId:process.env.S3_ACCESS_KEY, secretAccessKey:process.env.S3_SECRET_KEY}))
     .putObject({ Bucket:process.env.S3_BUCKET, Key, ACL:"authenticated-read", ContentType:"application/octet-stream", Body})
@@ -60,8 +60,8 @@ async function follow(stream, onProgress) {
 }
 
 function eventLogMessage(event) {
-  let message = [event.status, event.progress, event.stream].filter((x) => !!x).reduce((a, arg) => `${a} ${arg}`, '').trim();
-  if(message !== '') {
+  let message = [event.status, event.progress, event.stream].filter((x) => !!x).reduce((a, arg) => `${a} ${arg}`, "").trim();
+  if(message !== "") {
     message = `${message}\n`;
   }
   return message;
@@ -83,9 +83,9 @@ function checkQueue(kafkaHost) {
     });
     producers[kafkaHost].producer.send({"topic":"alamoweblogs", messages}, (err) => { 
       if(err) {
-        console.error(`Unable to send traffic to kafka:\n${$err}`);
+        console.error(`Unable to send traffic to kafka:\n${err}`);
       }
-    })
+    });
     producers[kafkaHost].queue = [];
   }
   setTimeout(checkQueue.bind(null, kafkaHost), 2000);
