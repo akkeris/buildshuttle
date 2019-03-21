@@ -3,14 +3,22 @@ jobs:
   build:
     working_directory: /app
     docker:
-      - image: docker:17.05.0-ce-git
+      - image: docker:18.06.3-ce-git
     steps:
       - checkout
       - setup_remote_docker
       - run:
+          name: Grab dependencies
+          command: |
+            apk update && apk add --update nodejs && apk add --update npm
+      - run:
           name: Build application Docker image
           command: |
             docker build -t buildshuttle .
+      - run:
+          name: Run tests
+          command: |
+            DOCKER_BUILD_IMAGE=buildshuttle npm test
       - deploy:
           name: Push application Docker image
           command: |
