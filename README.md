@@ -2,6 +2,9 @@
 
 The build shuttle is a private API used by the controller-api to build docker images from sources.
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/d6d102f668cf40f2856c85bbe3b9d45b)](https://www.codacy.com/app/Akkeris/buildshuttle?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=akkeris/buildshuttle&amp;utm_campaign=Badge_Grade)
+[![CircleCI](https://circleci.com/gh/akkeris/buildshuttle.svg?style=svg)](https://circleci.com/gh/akkeris/buildshuttle)
+
 ## Configuration
 
   * `PORT` - The port number to use to listen to new builds.
