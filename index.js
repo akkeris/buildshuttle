@@ -51,7 +51,7 @@ async function createBuild(req, res) {
     return res.status(400).send({"status":"Bad Request - missing fields."});
   }
   if (!(/([a-f\d]{8}(-[a-f\d]{4}){3}-[a-f\d]{12}?)/i).test(req.body.build_uuid)) {
-    return res.status(400).send({"status":"Bad Request - build uuid is invalid."})
+    return res.status(400).send({"status":"Bad Request - build uuid is invalid."});
   }
   let Binds = ["/var/run/docker.sock:/run/docker.sock"];
   if(process.env.TEST_MODE) {
@@ -143,7 +143,7 @@ async function buildExists(req, res) {
     }
   } catch (e) {
     common.log(`Failed to see build exists: ${e.message}\n${e.stack}`);
-    res.status(500).send({"status":"Internal Server Error"})
+    res.status(500).send({"status":"Internal Server Error"});
   }
 }
 

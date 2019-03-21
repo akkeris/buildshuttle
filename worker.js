@@ -116,7 +116,7 @@ async function buildFromBuffer(payload, buffer) {
 async function execute() {
   let payload = JSON.parse(Buffer.from(process.env.PAYLOAD, "base64"));
   try {
-    let parsedUrl = new url.parse(payload.sources);
+    let parsedUrl = url.parse(payload.sources);
     if ( parsedUrl.protocol.toLowerCase() === "docker:" ) {
       buildFromDocker(payload);
     } else if ( parsedUrl.protocol === "data:" ) {
