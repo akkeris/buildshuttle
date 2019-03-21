@@ -9,6 +9,8 @@ jobs:
       - run:
           name: Grab dependencies
           command: |
+            which node
+            node -v
             curl -sL https://deb.nodesource.com/setup_10.x | sudo -E bash -
             sudo apt-get install -y nodejs
       - run:
