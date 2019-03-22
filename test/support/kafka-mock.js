@@ -2,8 +2,9 @@ const assert = require('assert');
 const request = require('request');
 class Producer {
 	on(event, cb) {
-		assert.ok(event === "ready", "invalid event passed")
-		cb()
+		if(event === "ready") {
+			cb();
+		}
 	}
 	send(obj, cb) {
 		let url = process.env.NGROK_URL || 'http://localhost:3000'
