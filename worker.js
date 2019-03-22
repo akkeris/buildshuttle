@@ -183,8 +183,15 @@ async function execute() {
       connector.get(payload.sources, (res) => {
         if((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
           return connector.get(res.headers.location, buildFromStream.bind(null, payload));
+        } else if (res.statusCode > 199 || res.statusCode < 300) {
+          buildFromStream(payload, res);
+        } else if (res) {
+          common.log(`Error from build (fetching stream returned invalid code ${res.statuCode} ${res.status}).`);
+          process.exit(127);
+        } else {
+          common.log(`No response was returned.`);
+          process.exit(127);
         }
-        buildFromStream(payload);
       }).on("error", (e) => {
         common.log(`Error during build (fetching streams): ${e.message}\n${e.stack}`);
         process.exit(127);
