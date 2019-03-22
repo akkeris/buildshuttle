@@ -114,7 +114,7 @@ async function createBuild(req, res) {
             common.sendStatus(req.body.callback, req.body.callback_auth, req.body.build_number, "failed", false);
           }
         } catch (e) {
-          common.log(`Failed to terminate build on timeout: ${e.message}\n${e.stack}`)
+          common.log(`Failed to terminate build on timeout: ${e.message}\n${e.stack}`);
         }
       }, 20 * 60 * 1000); // 20 minute timeout
     });
