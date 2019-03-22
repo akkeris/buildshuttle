@@ -169,7 +169,6 @@ describe("test failures for builds", function() {
     test.events.removeAllListeners('callback')
   });
 
-
   it("test failures a build with failed build", async () => {
     test.events.removeAllListeners('callback')
     pending = false

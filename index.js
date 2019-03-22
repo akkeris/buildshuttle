@@ -78,7 +78,6 @@ async function createBuild(req, res) {
       AutoRemove:true,
     },
   };
-
   try {
     // if the container already exists, remove it.
     let containerName = `${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`;
@@ -173,6 +172,9 @@ async function stopBuild(req, res) {
 async function getBuildLogs(req, res) {
   try {
     // TODO: validate this input.
+    if(process.env.DEBUG) {
+      console.log(`fetching ${req.params.app_id}-${req.params.number}.logs`)
+    }
     let stream = await common.getObject(`${req.params.app_id}-${req.params.number}.logs`);
     stream.on("error", (err) => {
       if(err.message && err.message.indexOf("no such file") === -1) {
