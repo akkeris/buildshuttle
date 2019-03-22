@@ -81,7 +81,7 @@ function checkQueue(kafkaHost) {
         "message":eventLogMessage(x.event),
       });
     });
-    producers[kafkaHost].producer.send({"topic":"alamoweblogs", messages}, (err) => { 
+    producers[kafkaHost].producer.send([{"topic":"alamoweblogs", messages}], (err) => { 
       if(err) {
         console.error(`Unable to send traffic to kafka:\n${err}`);
       }
