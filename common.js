@@ -95,12 +95,15 @@ function getKafkaSendingQueue(kafkaHost) {
   if (!kafkaHost) {
     return {queue:[]}; // return a dummy queue.
   }
-  if ( !producers[kafkaHost] ) {
+  if (!producers[kafkaHost]) {
     if(process.env.DEBUG) {
-      console.log(`[debug] connecting to ${kafkaHost}`)
+      console.log(`[debug] connecting to ${kafkaHost}`);
     }
     producers[kafkaHost] = { producer:new kafka.Producer(new kafka.KafkaClient({kafkaHost})), queue:[] };
     producers[kafkaHost].producer.on("ready", checkQueue.bind(null, kafkaHost));
+    producers[kafkaHost].producer.on("error", (err) => {
+      console.error(`Unable to communicate with kafka: ${err.message}\n${err.stack}`);
+    });
   }
   return producers[kafkaHost];
 }
