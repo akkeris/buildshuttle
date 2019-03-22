@@ -48,7 +48,7 @@ spec:
         - name: MAXIMUM_PARALLEL_BUILDS
           value: "4"
         - name: DOCKER_BUILD_IMAGE
-          value: akkeris/buildshuttle:release-25
+          value: akkeris/buildshuttle:latest
         - name: S3_ACCESS_KEY
           valueFrom:
             configMapKeyRef:
@@ -74,7 +74,7 @@ spec:
             configMapKeyRef:
               key: S3_SECRET_KEY
               name: buildshuttle
-        image: akkeris/buildshuttle:release-25
+        image: akkeris/buildshuttle:latest
         imagePullPolicy: Always
         name: buildshuttle
         ports:
@@ -132,4 +132,4 @@ spec:
   selector:
     name: buildshuttle
   sessionAffinity: None
-  type: NodePort
+  type: ClusterIp

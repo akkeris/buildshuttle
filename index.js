@@ -58,6 +58,9 @@ async function createBuild(req, res) {
   if (!(/([a-f\d]{8}(-[a-f\d]{4}){3}-[a-f\d]{12}?)/i).test(req.body.build_uuid)) {
     return res.status(400).send({"status":"Bad Request - build uuid is invalid."});
   }
+  if(process.env.DEBUG) {
+    console.log('[debug] received request:', JSON.stringify(req.body));
+  }
   let Binds = ["/var/run/docker.sock:/run/docker.sock"];
   if(process.env.TEST_MODE) {
     try { fs.mkdirSync("/tmp/archives"); } catch (e) { }

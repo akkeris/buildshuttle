@@ -96,6 +96,9 @@ function getKafkaSendingQueue(kafkaHost) {
     return {queue:[]}; // return a dummy queue.
   }
   if ( !producers[kafkaHost] ) {
+    if(process.env.DEBUG) {
+      console.log(`[debug] connecting to ${kafkaHost}`)
+    }
     producers[kafkaHost] = { producer:new kafka.Producer(new kafka.KafkaClient({kafkaHost})), queue:[] };
     producers[kafkaHost].producer.on("ready", checkQueue.bind(null, kafkaHost));
   }
@@ -134,10 +137,10 @@ async function sendLogs(payload, type, event) {
   }
   event.type = type;
   if(process.env.DEBUG) {
-    console.log(`build logs: ${eventLogMessage(event)}`.trim());
+    console.log(`[debug] build logs: ${eventLogMessage(event)}`.trim());
   }
-  sendLogsToKafka(payload.kafka_hosts, event.type, payload.app, payload.space, payload.build_number, event);
-  sendLogsToS3(payload, event);
+  await sendLogsToKafka(payload.kafka_hosts, event.type, payload.app, payload.space, payload.build_number, event);
+  await sendLogsToS3(payload, event);
 }
 
 async function closeLogs(payload) {
