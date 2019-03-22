@@ -87,6 +87,8 @@ describe("builds logs", function() {
   it("test to ensure logs arrive through kafka", (done) => {
     test.events.removeAllListeners('kafka')
     let listener = function(event) {
+      expect(event).to.be.an('array')
+      event = event[0]
       expect(event.topic).to.equal("alamoweblogs")
       expect(event.messages).to.be.an('array')
       event.messages.forEach((msg) => {
