@@ -133,6 +133,9 @@ async function sendLogs(payload, type, event) {
     event.progress = event.progress.toString().replace(/^[\n]+|[\n]+$/g, "");
   }
   event.type = type;
+  if(process.env.DEBUG) {
+    console.log(`build logs: ${eventLogMessage(event)}`.trim());
+  }
   sendLogsToKafka(payload.kafka_hosts, event.type, payload.app, payload.space, payload.build_number, event);
   sendLogsToS3(payload, event);
 }
