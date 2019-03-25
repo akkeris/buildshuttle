@@ -84,28 +84,32 @@ async function createBuild(req, res) {
     await stopDockerBuildByName(containerName);
     let timeout = null;
     common.log(`Build starting: ${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`);
-    common.sendStatus(req.body.callback, req.body.callback_auth, req.body.build_number, "pending", false);
+    await common.sendStatus(req.body.callback, req.body.callback_auth, req.body.build_number, "pending", false);
     docker.run(dockerBuildImage, ["node", "worker.js"], process.stdout, env, async (err, data, container) => {
-      clearInterval(timeout);
-      timeout = null;
-      if (err) {
-        return common.log(`Running worker returned with an error: ${err.message}\n${err.stack}`);
-      }
       try {
-        await container.remove();
-      } catch (e) {
-        if(!e.message.includes("is already in progress") && !e.message.includes("no such container")) {
-          common.log("Removing after build finished failed:", e.message);
+        clearInterval(timeout);
+        timeout = null;
+        if (err) {
+          return common.log(`Running worker returned with an error: ${err.message}\n${err.stack}`);
         }
+        try {
+          await container.remove();
+        } catch (e) {
+          if(!e.message.includes("is already in progress") && !e.message.includes("no such container")) {
+            common.log("Removing after build finished failed:", e.message);
+          }
+        }
+        if (data && data.StatusCode !== 0) {
+          common.log(`Build failed: ${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`);
+          await common.sendStatus(req.body.callback, req.body.callback_auth, req.body.build_number, "failed", false);
+        } else {
+          common.log(`Build succeeded: ${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`);
+          await common.sendStatus(req.body.callback, req.body.callback_auth, req.body.build_number, "succeeded", false);
+        }
+        common.log(`Build finished (code: ${data ? data.StatusCode : "unknown"}): ${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`);
+      } catch (e) {
+        console.error(`General error reporting build status: ${e.message}\n${e.stack}`)
       }
-      if (data && data.StatusCode !== 0) {
-        common.log(`Build failed: ${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`);
-        common.sendStatus(req.body.callback, req.body.callback_auth, req.body.build_number, "failed", false);
-      } else {
-        common.log(`Build succeeded: ${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`);
-        common.sendStatus(req.body.callback, req.body.callback_auth, req.body.build_number, "succeeded", false);
-      }
-      common.log(`Build finished (code: ${data ? data.StatusCode : "unknown"}): ${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`);
     }).on("start", (container) => {
       res.send({"status":"ok"});
       timeout = setTimeout(async () => {
@@ -113,7 +117,7 @@ async function createBuild(req, res) {
           if (timeout) {
             await stopDockerBuild(container);
             await removeDockerBuild(container);
-            common.sendStatus(req.body.callback, req.body.callback_auth, req.body.build_number, "failed", false);
+            await common.sendStatus(req.body.callback, req.body.callback_auth, req.body.build_number, "failed", false);
           }
         } catch (e) {
           common.log(`Failed to terminate build on timeout: ${e.message}\n${e.stack}`);

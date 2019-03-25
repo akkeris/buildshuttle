@@ -63,6 +63,8 @@ describe("creating builds", function() {
     test.events.removeListener('callback', listener)
     test.events.removeAllListeners('callback')
   });
+
+  let invalid_response = false;
   it("test creating multiple builds", async () => {
     test.events.removeAllListeners('callback')
     pending = false;
@@ -84,6 +86,7 @@ describe("creating builds", function() {
         } else if (body.status === "succeeded") {
           successful2 = true;
         } else {
+          invalid_response = true;
           expect(false).to.equal(true);
         }
       } else {
@@ -152,8 +155,9 @@ describe("creating builds", function() {
     while(successful2 === false) {
       await test.wait()
     }
-    test.events.removeListener('callback', listener)
-    test.events.removeAllListeners('callback')
+    expect(invalid_response).to.equal(false);
+    test.events.removeListener('callback', listener);
+    test.events.removeAllListeners('callback');
   });
   it("ensure build source code can be recieved post-build", async () => {
     let code = await request("http://localhost:9000/56bce159-87a7-437f-bed3-2da4e44d9cf6");

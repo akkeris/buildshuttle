@@ -1,4 +1,4 @@
-const request = require("request");
+const request = require("request-promise-native");
 const DockerOde = require("dockerode");
 const docker = new DockerOde({socketPath: "/var/run/docker.sock"});
 const aws = require("aws-sdk");
@@ -54,14 +54,13 @@ function putObject(Key, Body) {
     .promise();
 }
 
-async function sendStatus(url, authorization, id, status, building) {
+async function sendStatus(uri, authorization, id, status, building) {
   try {
-    if(url) {
-      request({url, headers:{authorization, "content-type":"application/json"}, method:"post", body:JSON.stringify({id, status, building, "type":"buildshuttle"})});
+    if(uri) {
+      await request({uri, headers:{authorization, "content-type":"application/json"}, method:"post", body:JSON.stringify({id, status, building, "type":"buildshuttle"})});
     }
   } catch (e) {
-    console.error(`Unable to send callback status to ${url}`);
-    console.error(e);
+    console.error(`Unable to send callback status to ${uri}:${e.message}\n${e.stack}`);
   }
 }
 
