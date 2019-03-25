@@ -57,7 +57,7 @@ async function build(payload) {
     let newBuildArgs = calcBuildArgs(payload.build_args || {});
     fs.writeFileSync("/tmp/build/Dockerfile", calcDockerFile(newBuildArgs, "/tmp/build/Dockerfile"));
     let repo = `${payload.gm_registry_host}/${payload.gm_registry_repo}/${payload.app}-${payload.app_uuid}`;
-    let tag = `0.${payload.build_number}`;
+    let tag = `1.${payload.build_number}`;
     let build_options = { 
       "buildargs":newBuildArgs, 
       "t":`${repo}:${tag}`,
@@ -120,7 +120,7 @@ async function buildFromDocker(payload) {
     await follow(await docker.pull(payload.sources.replace("docker://", ""), {}, undefined, pullAuth), 
       logs.send.bind(null, payload, "pull"));
     let repo = `${payload.gm_registry_host}/${payload.gm_registry_repo}/${payload.app}-${payload.app_uuid}`;
-    let tag = `0.${payload.build_number}`;
+    let tag = `1.${payload.build_number}`;
     await (docker.getImage(payload.sources.replace("docker://", ""))).tag({repo, tag});
     await (docker.getImage(payload.sources.replace("docker://", ""))).tag({repo, tag:"latest"});
     await follow(
