@@ -11,6 +11,7 @@ The build shuttle is a private API used by the controller-api to build docker im
 *  `PORT` - The port number to use to listen to new builds.
 *  `NO_CACHE` - Whether to cache layers as much as possible during builds. If set to `true` docker build will not cache the pull or build.
 *  `DOCKER_BUILD_IMAGE` - The docker image to use when spinning up worker nodes, the image defaults to `akkeris/buildshuttle:latest`
+*  `DOCKER_BUILD_SETTINGS` -  A JSON structure passed into the `Docker` constructor telling the builder where to connect to for dockerd.  Defaults to `{socketPath: '/var/run/docker.sock'}`
 *  `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_LOCATION` - Amazon S3 service to use to store build sources. Note that during tests it uses a temporary folder on the file system to simulate storing and reading from S3 and therefore the S3 services are not required for tests.
 *  `EXTRA_BUILD_ARGS` - A json object where each key:value pair defines a new environment variable (ARG in docker) that is injected into the build. Note: sensitive information should not be injected should anyone have access to the resulting docker image.
 *  `MAXIMUM_PARALLEL_BUILDS` - The maximum amount of parallel builds, this defaults to 4.

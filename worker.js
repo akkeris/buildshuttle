@@ -1,6 +1,6 @@
 const url = require("url");
 const DockerOde = require("dockerode");
-const docker = new DockerOde({socketPath: "/var/run/docker.sock"});
+const docker = new DockerOde(process.env.DOCKER_BUILD_SETTINGS ? JSON.parse(process.env.DOCKER_BUILD_SETTINGS) : {socketPath: "/var/run/docker.sock"});
 const common = require("./common.js");
 const http = require("http");
 const https = require("https");

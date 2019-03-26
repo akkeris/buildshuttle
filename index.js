@@ -20,12 +20,12 @@ async function stopDockerBuild(container) {
 
 async function removeDockerBuild(container) {
   try {
-    await container.remove();
+    await container.remove({"v":true, "link":true, "force":true});
   } catch (e) {
     if(!e.message.includes("is already in progress") && !e.message.includes("no such container")) {
       common.log("Removing container on stop failed:", e.message);
       try {
-        await container.remove({"force":true});
+        await container.remove({"v":true, "link":true, "force":true});
       } catch (ee) {
         common.log("Removing container forcefully on stop failed:", ee.message);
       }
