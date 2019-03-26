@@ -50,9 +50,6 @@ function open(payload) {
 }
 
 function sendLogsToKafka(type, app, space, build_number, event) {
-  if(process.env.DEBUG) {
-    //console.log(`[debug] sending logs to kafka`);
-  }
   return new Promise((resolve, reject) => {
     if(kafkaConnection) {
       kafkaConnection.send([{"topic":"alamoweblogs", "messages":[JSON.stringify({
@@ -74,9 +71,6 @@ function sendLogsToKafka(type, app, space, build_number, event) {
 }
 
 async function flushLogsToS3(payload) {
-  if(process.env.DEBUG) {
-    //console.log(`[debug] flushing logs to ${payload.app}-${payload.app_uuid}-${payload.build_number}.logs with: ${logStream}`);
-  }
   logInterval = null;
   if(logStream) {
     await common.putObject(`${payload.app}-${payload.app_uuid}-${payload.build_number}.logs`, logStream);
@@ -84,9 +78,6 @@ async function flushLogsToS3(payload) {
 }
 
 async function sendLogsToS3(payload, event) {
-  if(process.env.DEBUG) {
-    //console.log(`[debug] sending logs to s3`);
-  }
   if(!logInterval) {
     logInterval = setTimeout(flushLogsToS3.bind(null, payload), 2000);
   }
@@ -113,9 +104,6 @@ async function send(payload, type, event) {
       event.progress = event.progress.toString().replace(/^[\n]+|[\n]+$/g, "");
     }
     event.type = type;
-    if(process.env.DEBUG) {
-     // console.log(`[debug] build logs: ${eventLogMessage(event)}`.trim());
-    }
     await sendLogsToKafka(event.type, payload.app, payload.space, payload.build_number, event);
     await sendLogsToS3(payload, event);
   } catch (e) {

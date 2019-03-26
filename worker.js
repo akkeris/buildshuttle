@@ -75,23 +75,48 @@ async function build(payload) {
     if(process.env.DEBUG) {
       console.log('[debug-worker]: beginning putting sources and building docker image...')
     }
+    if(process.env.PERFORMANCE) {
+      console.time("buildImageStart");
+    }
     let buildStream = await docker.buildImage({"context":"/tmp/build"}, build_options);
     if(process.env.DEBUG) {
       console.log('[debug-worker]: build stream started')
+    }
+    if(process.env.PERFORMANCE) {
+      console.timeEnd("buildImageStart");
+    }
+    if(process.env.PERFORMANCE) {
+      console.time("putS3+buildImage");
     }
     await Promise.all([
       common.putObject(payload.build_uuid, fs.createReadStream("/tmp/sources")),
       follow(buildStream, logs.send.bind(null, payload, "build"))
     ])
+    if(process.env.PERFORMANCE) {
+      console.timeEnd("putS3+buildImage");
+    }
     if(process.env.DEBUG) {
       console.log('[debug-worker]: getting image and pushing it to gm_registry_auth...')
+    }
+
+    if(process.env.PERFORMANCE) {
+      console.time("getImage+push");
     }
     await follow(await (docker.getImage(`${repo}:${tag}`)).push({tag}, undefined, payload.gm_registry_auth), 
       logs.send.bind(null, payload, "push"));
     if(process.env.DEBUG) {
       console.log('[debug-worker]: finished pushing image...')
     }
+    if(process.env.PERFORMANCE) {
+      console.timeEnd("getImage+push");
+    }
+    if(process.env.PERFORMANCE) {
+      console.time("logs.close");
+    }
     await logs.close(payload);
+    if(process.env.PERFORMANCE) {
+      console.timeEnd("logs.close");
+    }
     process.exit(0);
   } catch (e) {
     if(e.message) {
@@ -117,19 +142,51 @@ async function buildFromDocker(payload) {
     if (payload.docker_login) {
       pullAuth = {"username":payload.docker_login, "password":payload.docker_password};
     }
+    if(process.env.PERFORMANCE) {
+      console.time("buildFromDoccker.pull");
+    }
     await follow(await docker.pull(payload.sources.replace("docker://", ""), {}, undefined, pullAuth), 
       logs.send.bind(null, payload, "pull"));
+
+    if(process.env.PERFORMANCE) {
+      console.timeEnd("buildFromDoccker.pull");
+    }
     let repo = `${payload.gm_registry_host}/${payload.gm_registry_repo}/${payload.app}-${payload.app_uuid}`;
     let tag = `1.${payload.build_number}`;
+    if(process.env.PERFORMANCE) {
+      console.time("buildFromDoccker.tagging");
+    }
     await (docker.getImage(payload.sources.replace("docker://", ""))).tag({repo, tag});
     await (docker.getImage(payload.sources.replace("docker://", ""))).tag({repo, tag:"latest"});
+    if(process.env.PERFORMANCE) {
+      console.timeEnd("buildFromDoccker.tagging");
+    }
+    if(process.env.PERFORMANCE) {
+      console.time("buildFromDocker.getImage+push");
+    }
     await follow(
       await (docker.getImage(`${repo}:${tag}`)).push({tag}, undefined, payload.gm_registry_auth), 
       logs.send.bind(null, payload, "push"));
+
+    if(process.env.PERFORMANCE) {
+      console.timeEnd("buildFromDocker.getImage+push");
+    }
+    if(process.env.PERFORMANCE) {
+      console.time("buildFromDocker.getImage+push+latest");
+    }
     await follow(
       await (docker.getImage(`${repo}:latest`)).push({tag:"latest"}, undefined, payload.gm_registry_auth), 
       logs.send.bind(null, payload, "push"));
+    if(process.env.PERFORMANCE) {
+      console.timeEnd("buildFromDocker.getImage+push+latest");
+    }
+    if(process.env.PERFORMANCE) {
+      console.time("buildFromDocker.logclose");
+    }
     await logs.close(payload);
+    if(process.env.PERFORMANCE) {
+      console.timeEnd("buildFromDocker.logclose");
+    }
     process.exit(0);
   } catch (e) {
     common.log(`Error during build (from docker): ${e.message}\n${e.stack}`);
@@ -142,8 +199,16 @@ async function buildFromStream(payload, stream) {
   if(process.env.DEBUG) {
     console.log('[debug-worker]: building payload from stream')
   }
+  if(process.env.PERFORMANCE) {
+    console.time("buildFromStream");
+  }
   let dest = fs.createWriteStream("/tmp/sources");
-  dest.on("close", () => build(payload));
+  dest.on("close", () => {
+    if(process.env.PERFORMANCE) {
+      console.timeEnd("buildFromStream");
+    }
+    build(payload)
+  });
   dest.on("error", (e) => {
     common.log(`Error during build (attempting to stream to sources): ${e.message}\n${e.stack}`);
     process.exit(127);

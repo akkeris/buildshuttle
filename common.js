@@ -55,12 +55,21 @@ function putObject(Key, Body) {
 }
 
 async function sendStatus(uri, authorization, id, status, building) {
+  if(process.env.PERFORMANCE) {
+    console.time("sendStatus");
+  }
   try {
     if(uri) {
+      if(process.env.DEBUG) {
+        console.log(`[debug] sending "${status}" status for ${id} to ${uri}`);
+      }
       await request({uri, headers:{authorization, "content-type":"application/json"}, method:"post", body:JSON.stringify({id, status, building, "type":"buildshuttle"})});
     }
   } catch (e) {
     console.error(`Unable to send callback status to ${uri}:${e.message}\n${e.stack}`);
+  }
+  if(process.env.PERFORMANCE) {
+    console.timeEnd("sendStatus");
   }
 }
 
