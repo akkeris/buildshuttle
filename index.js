@@ -93,7 +93,7 @@ async function createBuild(req, res) {
           return common.log(`Running worker returned with an error: ${err.message}\n${err.stack}`);
         }
         try {
-          await container.remove();
+          await container.remove({"v":true, "link":true, "force":true});
         } catch (e) {
           if(!e.message.includes("is already in progress") && !e.message.includes("no such container")) {
             common.log("Removing after build finished failed:", e.message);
