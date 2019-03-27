@@ -89,7 +89,7 @@ describe("builds logs", function() {
     let listener = function(event) {
       expect(event).to.be.an('array')
       event = event[0]
-      expect(event.topic).to.equal("alamoweblogs")
+      expect(event.topic).to.equal("alamobuildlogs")
       expect(event.messages).to.be.an('array')
       event.messages.forEach((msg) => {
         msg = JSON.parse(msg);

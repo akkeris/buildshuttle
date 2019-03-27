@@ -48,7 +48,7 @@ function open(payload) {
 function sendLogsToKafka(type, app, space, build_number, event) {
   return new Promise((resolve, reject) => {
     if(kafkaConnection) {
-      kafkaConnection.send([{"topic":"alamobuildlogs", "messages":[JSON.stringify({
+      kafkaConnection.send([{"topic":(process.env.KAFKA_TOPIC || "alamobuildlogs"), "messages":[JSON.stringify({
           "metadata":`${app}-${space}`, 
           "build":build_number, 
           "job":build_number,

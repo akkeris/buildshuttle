@@ -17,6 +17,7 @@ The build shuttle is a private API used by the controller-api to build docker im
 *  `MAXIMUM_PARALLEL_BUILDS` - The maximum amount of parallel builds, this defaults to 4.
 *  `DEBUG` - This uses the node [debug](https://www.npmjs.com/package/debug) module. Set to `DEBUG=*` to get all debug information, or `DEBUG=buildshuttle,buildshuttle-worker` to just receive debug information on the build shuttle.
 * `TIMEOUT_IN_MS` - The timeout for builds, this is in milliseconds, the default is 20 minutes (or 1000 * 60 * 20).
+* `KAFKA_TOPIC` - The topic ot stream build logs to. 
 
 ## Starting
 
