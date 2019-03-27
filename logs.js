@@ -52,7 +52,7 @@ function sendLogsToKafka(type, app, space, build_number, event) {
           "metadata":`${app}-${space}`, 
           "build":build_number, 
           "job":build_number.toString(),
-          "message":eventLogMessage(event),
+          "message":eventLogMessage(event).trim(),
         })]}], (err) => {
           if(err) {
             console.log(`Unable to send traffic to kafka: ${e.message}\n${e.stack}`);
