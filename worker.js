@@ -65,9 +65,9 @@ async function build(payload) {
       },
     };
     console.timeEnd(`build.extracting sources ${payload.build_uuid}`);
-
-
     if(payload.gm_registry_auth) {
+      build_options.registryconfig = {};
+      build_options.registryconfig[payload.gm_registry_host] = payload.gm_registry_auth;
       let auth = JSON.parse(JSON.stringify(payload.gm_registry_auth));
       if(!auth.serveraddress) {
         auth.serveraddress = payload.gm_registry_host;
