@@ -51,7 +51,7 @@ function sendLogsToKafka(type, app, space, build_number, event) {
       kafkaConnection.send([{"topic":(process.env.KAFKA_TOPIC || "alamobuildlogs"), "messages":[JSON.stringify({
           "metadata":`${app}-${space}`, 
           "build":build_number, 
-          "job":build_number,
+          "job":build_number.toString(),
           "message":eventLogMessage(event),
         })]}], (err) => {
           if(err) {
