@@ -3,6 +3,7 @@ const common = require("./common.js");
 const debug = require('debug')('buildshuttle-worker');
 let kafka = require("kafka-node");
 if(process.env.TEST_MODE) {
+  console.log('Running in test mode (using test kafka broker)');
   kafka = require("./test/support/kafka-mock.js");
 }
 
@@ -47,7 +48,7 @@ function open(payload) {
 function sendLogsToKafka(type, app, space, build_number, event) {
   return new Promise((resolve, reject) => {
     if(kafkaConnection) {
-      kafkaConnection.send([{"topic":"alamoweblogs", "messages":[JSON.stringify({
+      kafkaConnection.send([{"topic":"alamobuildlogs", "messages":[JSON.stringify({
           "metadata":`${app}-${space}`, 
           "build":build_number, 
           "job":build_number,
