@@ -73,11 +73,11 @@ async function createBuild(req, res) {
   let env = {
     name:`${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`,
     Env:cenv,
-    Dns:dns.getServers(),
     HostConfig:{
       Binds,
       Privileged:true,
       AutoRemove:true,
+      Dns:dns.getServers(),
     },
   };
   try {
