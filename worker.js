@@ -67,9 +67,6 @@ async function build(payload) {
         "build_uuid":payload.build_uuid,
         "app_uuid":payload.app_uuid,
       },
-      //"cpuperiod":100000, 
-      //"cpuquota":50000,    // 50000/100000 or (1/2 cpu)
-      //"memory":1073741824, // 1 gigabyte memory
     };
     build_options.nocache = (process.env.TEST_MODE || process.env.NO_CACHE === "true") ? true : false;
     if(process.env.DEBUG) {

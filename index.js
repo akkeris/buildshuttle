@@ -9,6 +9,7 @@ const dockerBuildImage = process.env.DOCKER_BUILD_IMAGE || "akkeris/buildshuttle
 const builders = [];
 const common = require("./common.js");
 const fs = require("fs");
+const dns = require('dns');
 
 async function stopDockerBuild(container) {
   try {
@@ -72,6 +73,7 @@ async function createBuild(req, res) {
   let env = {
     name:`${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`,
     Env:cenv,
+    Dns:dns.getServers(),
     HostConfig:{
       Binds,
       Privileged:true,
