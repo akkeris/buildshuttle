@@ -68,14 +68,28 @@ async function build(payload) {
 
 
     if(payload.gm_registry_auth) {
-      let auth = payload.gm_registry_auth;
+      let auth = JSON.parse(JSON.stringify(payload.gm_registry_auth));
       if(!auth.serveraddress) {
         auth.serveraddress = payload.gm_registry_host;
       }
       debug(`attempting to authorize ${auth.serveraddress} with ${auth.username}`);
       console.time(`build.auth`);
-      await docker.checkAuth(auth);
+      try {
+        await docker.checkAuth(auth);
+      } catch (e) {
+        common.log(`Error, unable to authorize ${auth.serveraddress}: ${e.message}\n${e.stack}`);
+      }
       console.timeEnd(`build.auth`);
+      if(!auth.serveraddress.startsWith('https://')) {
+        console.time(`build.auth(https)`);
+        auth.serveraddress = `https://${auth.serveraddress}`;
+        try {
+          await docker.checkAuth(auth);
+        } catch (e) {
+          common.log(`Error, unable to authorize ${auth.serveraddress}: ${e.message}\n${e.stack}`);
+        }
+        console.timeEnd(`build.auth(https)`);
+      }
     }
 
     build_options.nocache = (process.env.TEST_MODE || process.env.NO_CACHE === "true") ? true : false;
