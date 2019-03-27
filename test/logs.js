@@ -95,7 +95,6 @@ describe("builds logs", function() {
         msg = JSON.parse(msg);
         expect(msg.metadata).to.equal("test-test")
         expect(msg.build).to.equal(1)
-        expect(msg.job).to.equal(1)
         expect(msg.message).is.a('string')
       })
       test.events.removeListener('kafka', listener)
