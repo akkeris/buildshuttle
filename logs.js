@@ -1,5 +1,6 @@
 const fs = require("fs");
 const common = require("./common.js");
+const debug = require('debug')('buildshuttle-worker');
 let kafka = require("kafka-node");
 if(process.env.TEST_MODE) {
   kafka = require("./test/support/kafka-mock.js");
@@ -18,28 +19,22 @@ function eventLogMessage(event) {
 }
 
 function open(payload) {
-  if(process.env.DEBUG) {
-    console.log(`[debug] opening logging end points.`);
-  }
+  debug(`opening logging end points`);
   return new Promise((resolve, reject) => {
     try {
       if(payload.kafka_hosts) {
-        if(process.env.DEBUG) {
-          console.log(`[debug] attempting to connect to ${payload.kafka_hosts}`);
-        }
-        kafkaConnection = new kafka.Producer(new kafka.KafkaClient({kafkaHost:payload.kafka_hosts}));
-        kafkaConnection.on('ready', resolve);
-        if(process.env.DEBUG) {
-          console.log(`[debug] opening logging end points - ready set`);
-        }
+        debug(`connecting to kafka on ${payload.kafka_hosts}`);
+        kafkaConnection = new kafka.Producer(new kafka.KafkaClient({kafkaHost:payload.kafka_hosts}), {"requireAcks":0});
+        kafkaConnection.on('ready', () => {
+          debug(`connected to kafka on ${payload.kafka_hosts}`);
+          resolve();
+        });
         kafkaConnection.on("error", (e) => {
           console.log(`A kafka error occured: ${e.message}\n${e.stack}`);
           process.exit(1);
         });
-        if(process.env.DEBUG) {
-          console.log(`[debug] opening logging end points - on error set`);
-        }
       } else {
+        debug(`kafka was not provided, not streaming logs`);
         resolve();
       }
     } catch (e) {
@@ -79,15 +74,13 @@ async function flushLogsToS3(payload) {
 
 async function sendLogsToS3(payload, event) {
   if(!logInterval) {
-    logInterval = setTimeout(flushLogsToS3.bind(null, payload), 2000);
+    logInterval = setTimeout(flushLogsToS3.bind(null, payload), 3000);
   }
   logStream += eventLogMessage(event);
 }
 
 async function close(payload) {
-  if(process.env.DEBUG) {
-    console.log(`[debug] closing and flushing logs for ${payload.build_uuid}`);
-  }
+  debug(`closing and flushing logs for ${payload.build_uuid}`);
   await flushLogsToS3(payload);
   await sendLogsToKafka('finished', payload.app, payload.space, payload.build_number, {"stream":"Build finished"});
 }

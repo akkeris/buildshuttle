@@ -7,6 +7,7 @@ const https = require("https");
 const { execSync } = require("child_process");
 const fs = require("fs");
 const logs = require('./logs.js');
+const debug = require('debug')('buildshuttle-worker');
 
 function calcBuildArgs(buildArgs) {
   if (process.env.EXTRA_BUILD_ARGS) {
@@ -36,14 +37,11 @@ function follow(stream, onProgress) {
 }
 
 async function build(payload) {
-  if(process.env.DEBUG) {
-    console.log('[debug-worker]: beginning general build task...')
-  }
+  debug(`beginning general build task ${payload.build_uuid}`);
   try {
     await logs.open(payload);
-    if(process.env.DEBUG) {
-      console.log('[debug-worker]: logs opened...')
-    }
+    debug('logs opened');
+    console.time(`build.extracting sources ${payload.build_uuid}`);
     await logs.send(payload, "build", 
       {"status":execSync("tar zxf /tmp/sources -C /tmp/build || unzip /tmp/sources -d /tmp/build", {cwd:"/tmp", stdio:["pipe", "pipe", "pipe"]})});
     // Unzip will put a single directory with the original folder name inside of /tmp/build, for example
@@ -51,9 +49,7 @@ async function build(payload) {
     // will remove all the contents backc to /tmp/build.
     await logs.send(payload, "build",
       {"status":execSync("if [ `ls -d */ | wc -l` = \"1\" ]; then if [ `ls . | wc -l` = \"1\" ]; then mv */.[!.]* . || true; mv */* . || true; fi fi", {cwd:"/tmp/build", stdio:["pipe", "pipe", "pipe"]})});
-    if(process.env.DEBUG) {
-      console.log('[debug-worker]: extracted sources...')
-    }
+    debug('extracted sources');
     let newBuildArgs = calcBuildArgs(payload.build_args || {});
     fs.writeFileSync("/tmp/build/Dockerfile", calcDockerFile(newBuildArgs, "/tmp/build/Dockerfile"));
     let repo = `${payload.gm_registry_host}/${payload.gm_registry_repo}/${payload.app}-${payload.app_uuid}`;
@@ -68,52 +64,34 @@ async function build(payload) {
         "app_uuid":payload.app_uuid,
       },
     };
+    console.timeEnd(`build.extracting sources ${payload.build_uuid}`);
     build_options.nocache = (process.env.TEST_MODE || process.env.NO_CACHE === "true") ? true : false;
-    if(process.env.DEBUG) {
-      console.log('[debug-worker]: beginning putting sources and building docker image...')
-    }
-    if(process.env.PERFORMANCE) {
-      console.time("buildImageStart");
-    }
+    debug('starting build');
+    console.time(`build.start ${payload.build_uuid}`);
     let buildStream = await docker.buildImage({"context":"/tmp/build"}, build_options);
-    if(process.env.DEBUG) {
-      console.log('[debug-worker]: build stream started')
-    }
-    if(process.env.PERFORMANCE) {
-      console.timeEnd("buildImageStart");
-    }
-    if(process.env.PERFORMANCE) {
-      console.time("putS3+buildImage");
-    }
+    console.timeEnd(`build.start ${payload.build_uuid}`);
+    debug('started build');
     await Promise.all([
-      common.putObject(payload.build_uuid, fs.createReadStream("/tmp/sources")),
-      follow(buildStream, logs.send.bind(null, payload, "build"))
-    ])
-    if(process.env.PERFORMANCE) {
-      console.timeEnd("putS3+buildImage");
-    }
-    if(process.env.DEBUG) {
-      console.log('[debug-worker]: getting image and pushing it to gm_registry_auth...')
-    }
-
-    if(process.env.PERFORMANCE) {
-      console.time("getImage+push");
-    }
+      (async () => {
+        console.time(`build.uploading sources ${payload.build_uuid}`);
+        await common.putObject(payload.build_uuid, fs.createReadStream("/tmp/sources"));
+        console.timeEnd(`build.uploading sources ${payload.build_uuid}`);
+      })(),
+      (async () => {
+        console.time(`build.building ${payload.build_uuid}`);
+        await follow(buildStream, logs.send.bind(null, payload, "build"));
+        console.timeEnd(`build.building ${payload.build_uuid}`);
+      })()
+    ]);
+    debug(`pushing image ${repo}:${tag}`);
+    console.time(`build.pushing ${repo}:${tag}`);
     await follow(await (docker.getImage(`${repo}:${tag}`)).push({tag}, undefined, payload.gm_registry_auth), 
       logs.send.bind(null, payload, "push"));
-    if(process.env.DEBUG) {
-      console.log('[debug-worker]: finished pushing image...')
-    }
-    if(process.env.PERFORMANCE) {
-      console.timeEnd("getImage+push");
-    }
-    if(process.env.PERFORMANCE) {
-      console.time("logs.close");
-    }
+    debug(`pushed image ${repo}:${tag}`);
+    console.timeEnd(`build.pushing ${repo}:${tag}`);
+    console.time("logs.close");
     await logs.close(payload);
-    if(process.env.PERFORMANCE) {
-      console.timeEnd("logs.close");
-    }
+    console.timeEnd("logs.close");
     process.exit(0);
   } catch (e) {
     if(e.message) {
@@ -126,9 +104,7 @@ async function build(payload) {
 }
 
 async function buildFromDocker(payload) {
-  if(process.env.DEBUG) {
-    console.log('[debug-worker]: building payload from docker')
-  }
+  debug('build pulling and pushing existing image');
   try {
     await logs.open(payload);
     let parsedUrl = url.parse(payload.sources);
@@ -139,51 +115,40 @@ async function buildFromDocker(payload) {
     if (payload.docker_login) {
       pullAuth = {"username":payload.docker_login, "password":payload.docker_password};
     }
-    if(process.env.PERFORMANCE) {
-      console.time("buildFromDoccker.pull");
-    }
+    
+    debug(`pulling image ${payload.sources.replace("docker://", "")}`);
+    console.time(`buildFromDocker.pulling image ${payload.sources.replace("docker://", "")}`);
     await follow(await docker.pull(payload.sources.replace("docker://", ""), {}, undefined, pullAuth), 
       logs.send.bind(null, payload, "pull"));
-
-    if(process.env.PERFORMANCE) {
-      console.timeEnd("buildFromDoccker.pull");
-    }
+    console.timeEnd(`buildFromDocker.pulling image ${payload.sources.replace("docker://", "")}`);
+    debug(`pulled image ${payload.sources.replace("docker://", "")}`);
+    
     let repo = `${payload.gm_registry_host}/${payload.gm_registry_repo}/${payload.app}-${payload.app_uuid}`;
     let tag = `1.${payload.build_number}`;
-    if(process.env.PERFORMANCE) {
-      console.time("buildFromDoccker.tagging");
-    }
+    debug(`tagging image ${payload.sources.replace("docker://", "")}`);
+    console.time(`buildFromDocker.tagging image ${payload.sources.replace("docker://", "")} with ${repo}:${tag}`);
     await (docker.getImage(payload.sources.replace("docker://", ""))).tag({repo, tag});
     await (docker.getImage(payload.sources.replace("docker://", ""))).tag({repo, tag:"latest"});
-    if(process.env.PERFORMANCE) {
-      console.timeEnd("buildFromDoccker.tagging");
-    }
-    if(process.env.PERFORMANCE) {
-      console.time("buildFromDocker.getImage+push");
-    }
+    console.timeEnd(`buildFromDocker.tagging image ${payload.sources.replace("docker://", "")} with ${repo}:${tag}`);
+    debug(`tagged image ${payload.sources.replace("docker://", "")}`);
+    debug(`pushing image ${repo}:${tag}`);
+
+    console.time(`buildFromDocker.pushing image ${payload.sources.replace("docker://", "")}`);
     await follow(
       await (docker.getImage(`${repo}:${tag}`)).push({tag}, undefined, payload.gm_registry_auth), 
       logs.send.bind(null, payload, "push"));
-
-    if(process.env.PERFORMANCE) {
-      console.timeEnd("buildFromDocker.getImage+push");
-    }
-    if(process.env.PERFORMANCE) {
-      console.time("buildFromDocker.getImage+push+latest");
-    }
+    console.timeEnd(`buildFromDocker.pushing image ${payload.sources.replace("docker://", "")}`);
+    debug(`pushed image ${repo}:${tag}`);
+    debug(`pushing image ${repo}:latest`);
+    console.time(`buildFromDocker.pushing image (latest) ${payload.sources.replace("docker://", "")}`);
     await follow(
       await (docker.getImage(`${repo}:latest`)).push({tag:"latest"}, undefined, payload.gm_registry_auth), 
       logs.send.bind(null, payload, "push"));
-    if(process.env.PERFORMANCE) {
-      console.timeEnd("buildFromDocker.getImage+push+latest");
-    }
-    if(process.env.PERFORMANCE) {
-      console.time("buildFromDocker.logclose");
-    }
+    console.timeEnd(`buildFromDocker.pushing image (latest) ${payload.sources.replace("docker://", "")}`);
+    debug(`pushed image ${repo}:latest`);
+    console.time(`logs.close`);
     await logs.close(payload);
-    if(process.env.PERFORMANCE) {
-      console.timeEnd("buildFromDocker.logclose");
-    }
+    console.timeEnd(`logs.close`);
     process.exit(0);
   } catch (e) {
     common.log(`Error during build (from docker): ${e.message}\n${e.stack}`);
@@ -193,17 +158,12 @@ async function buildFromDocker(payload) {
 }
 
 async function buildFromStream(payload, stream) {
-  if(process.env.DEBUG) {
-    console.log('[debug-worker]: building payload from stream')
-  }
-  if(process.env.PERFORMANCE) {
-    console.time("buildFromStream");
-  }
+  debug('downloading sources from stream');
+  console.time(`buildFromStream.downloading sources for ${payload.build_uuid}`);
   let dest = fs.createWriteStream("/tmp/sources");
   dest.on("close", () => {
-    if(process.env.PERFORMANCE) {
-      console.timeEnd("buildFromStream");
-    }
+    debug('downloaded sources from stream');
+    console.timeEnd(`buildFromStream.downloading sources for ${payload.build_uuid}`);
     build(payload)
   });
   dest.on("error", (e) => {
@@ -218,9 +178,7 @@ async function buildFromStream(payload, stream) {
 }
 
 async function buildFromBuffer(payload, buffer) {
-  if(process.env.DEBUG) {
-    console.log('[debug-worker]: building payload from buffer')
-  }
+  debug('fetching payload from buffer (data uri)');
   fs.writeFileSync("/tmp/sources", buffer);
   build(payload);
 }
@@ -265,9 +223,7 @@ async function execute() {
   }
 }
 
-if(process.env.DEBUG) {
-  console.log(`[debug-worker]: beginning processing... `)
-}
+debug(`worker started`);
 
 execute().catch((err) => {
   console.log(err);

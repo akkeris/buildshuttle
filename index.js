@@ -10,6 +10,8 @@ const builders = [];
 const common = require("./common.js");
 const fs = require("fs");
 const dns = require('dns');
+const debug = require('debug')('buildshuttle');
+const timeoutInMs = process.env.TIMEOUT_IN_MS ? parseInt(process.env.TIMEOUT_IN_MS, 10) : (20 * 60 * 1000); // default is 20 minutes.
 
 async function stopDockerBuild(container) {
   try {
@@ -59,18 +61,18 @@ async function createBuild(req, res) {
   if (!(/([a-f\d]{8}(-[a-f\d]{4}){3}-[a-f\d]{12}?)/i).test(req.body.build_uuid)) {
     return res.status(400).send({"status":"Bad Request - build uuid is invalid."});
   }
-  if(process.env.DEBUG) {
-    console.log('[debug] received request:', JSON.stringify(req.body));
-  }
-  let Binds = ["/var/run/docker.sock:/run/docker.sock"];
+  debug('received request:', JSON.stringify(req.body));
+  let Binds = [
+    "/var/run/docker.sock:/run/docker.sock",
+    "/etc/resolv.conf:/etc/resolv.conf"
+  ];
   if(process.env.TEST_MODE) {
     try { fs.mkdirSync("/tmp/archives"); } catch (e) { }
     Binds.push("/tmp/archives:/tmp/archives");
   }
   let cenv = Object.keys(process.env).map((x) => `${x}=${process.env[x]}`)
     .concat([`PAYLOAD=${Buffer.from(typeof req.body === "string" ? req.body : JSON.stringify(req.body), "utf8").toString("base64")}`]);
-
-  console.log('Using DNS servers:', dns.getServers())
+  debug('Using dns servers for worker build:', dns.getServers());
   let env = {
     name:`${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`,
     Env:cenv,
@@ -118,14 +120,14 @@ async function createBuild(req, res) {
       timeout = setTimeout(async () => {
         try {
           if (timeout) {
+            common.log(`Build timed out (failed): ${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`);
             await stopDockerBuild(container);
             await removeDockerBuild(container);
-            await common.sendStatus(req.body.callback, req.body.callback_auth, req.body.build_number, "failed", false);
           }
         } catch (e) {
           common.log(`Failed to terminate build on timeout: ${e.message}\n${e.stack}`);
         }
-      }, 20 * 60 * 1000); // 20 minute timeout
+      }, timeoutInMs);
     });
   } catch (e) {
     common.log(`Failed to submit build.\n${e}`);
@@ -179,9 +181,7 @@ async function stopBuild(req, res) {
 async function getBuildLogs(req, res) {
   try {
     // TODO: validate this input.
-    if(process.env.DEBUG) {
-      console.log(`fetching ${req.params.app_id}-${req.params.number}.logs`)
-    }
+    debug(`fetching ${req.params.app_id}-${req.params.number}.logs`)
     let stream = await common.getObject(`${req.params.app_id}-${req.params.number}.logs`);
     stream.on("error", (err) => {
       if(err.message && err.message.indexOf("no such file") === -1) {

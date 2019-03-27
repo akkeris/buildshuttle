@@ -11,11 +11,12 @@ The build shuttle is a private API used by the controller-api to build docker im
 *  `PORT` - The port number to use to listen to new builds.
 *  `NO_CACHE` - Whether to cache layers as much as possible during builds. If set to `true` docker build will not cache the pull or build.
 *  `DOCKER_BUILD_IMAGE` - The docker image to use when spinning up worker nodes, the image defaults to `akkeris/buildshuttle:latest`
-*  `DOCKER_BUILD_SETTINGS` -  A JSON structure passed into the `Docker` constructor telling the builder where to connect to for dockerd.  Defaults to `{socketPath: '/var/run/docker.sock'}`
+*  `DOCKER_BUILD_SETTINGS` -  A JSON structure passed into the `Docker` constructor telling the builder where to connect to for dockerd.  Defaults to `{socketPath: '/var/run/docker.sock'}`. See [dockerode](https://github.com/apocas/dockerode#getting-started) for general settings that can be used here. In addition, see Getting Started section for more information.
 *  `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_LOCATION` - Amazon S3 service to use to store build sources. Note that during tests it uses a temporary folder on the file system to simulate storing and reading from S3 and therefore the S3 services are not required for tests.
 *  `EXTRA_BUILD_ARGS` - A json object where each key:value pair defines a new environment variable (ARG in docker) that is injected into the build. Note: sensitive information should not be injected should anyone have access to the resulting docker image.
 *  `MAXIMUM_PARALLEL_BUILDS` - The maximum amount of parallel builds, this defaults to 4.
-*  `DEBUG` - If set to any value it will print out information on requests received, stream build logs and other debugging information.
+*  `DEBUG` - This uses the node [debug](https://www.npmjs.com/package/debug) module. Set to `DEBUG=*` to get all debug information, or `DEBUG=buildshuttle,buildshuttle-worker` to just receive debug information on the build shuttle.
+* `TIMEOUT_IN_MS` - The timeout for builds, this is in milliseconds, the default is 20 minutes (or 1000 * 60 * 20).
 
 ## Starting
 
@@ -93,9 +94,9 @@ This will return the payload sources, this is only fetched by accompanying syste
 
 Gets the logs for the build.
 
-## Deploying
+## Getting Started
 
-Deploying the buildshuttle in kubernetes requires creating a configmap and then deploying the manifest in `manifests/kubernetes.yaml`. This assumes your namespace for deployment is `akkeris-system`.
+This getting started guide assumes you're using the namespace `akkeris-system` and the deployment name `buildshuttle`. To start you'll need an S3 bucket from AWS. This is used to store logs and build images. Create a file called `buildshuttle-configmap.yaml` and put the following in:
 
 ```yaml
 apiVersion: v1
@@ -111,25 +112,83 @@ data:
   S3_SECRET_KEY: ...
 ```
 
-Save the above yaml file with real values into `configmap.yaml`.  Then run `kubectl create -f ./configmap.yaml -n akkeris-system --context [cluster]`.  Now deploy the manifest by running `kubectl create -f ./manifests/kubernetes.yaml -n akkeris-system --context [cluster]`.  Remember to replace `[cluster]` with your cluster name.
+Make sure to replace the `...` with the appropriate values. Run `kubectl create -f ./configmap.yaml -n akkeris-system`.
 
-## Administrating
+Next you'll need to pick one of three ways to run buildshuttle: 
 
-When a new build occurs the build shuttle will create a docker "sibling" container. This container is visible to docker but not necessarily visible to kubernetes scheduler (it's a bit complex, but sometimes it is, but it's not gauranteed).  To account for this, please take the following pre-cautions, this can be done before or after deployment.
+1. Run the buildhsuttle using the host
+2. Run the buildshuttle with a worker
+3. Run the buildshuttle with an external worker
 
-### Dedicating nodes to builds
+There a few up and downsides, read over each and determine which is right for you.
 
-Create a node(s) with `akkeris.io/node-role=build` annotation. The buildshuttle (during scheduling) will prefer to be on these nodes, but will not refuse to deploy onto others.
+### Running buildshuttle using the host
 
-### Containing the build workers
+This is the default option that the buildshuttle will start up as if no other settings are provided. This uses the docker socket of the host that the buildshuttle is running on to perform builds.  
 
-Each worker node has a limit of `500m` cpu (1/2 cpu, or cpu period of 100000, or cpu quota of 50000) and `1Gb` of memory. However, kubernetes is unaware of the underlying request and limits, therefore its scheduler can potentially overcommit the node the build shuttle is on accidently. One way of overcoming this is by making the request and limits of the build shuttle manfiest in (`manifests/kubernetes.yaml`) to include the limits and request of all the potential build workers it might create. 
+**Pros**
 
-If for example you plan on having a maximum of 4 parallel jobs, the requests for the buildshuttle should be `125m * 4 = 500m` and `500Mi * 4 = 2Gi` and the limits `500m * 4 = 2000m` and `1Gi * 4 = 4Gi`. You can adjust the maximum parallel jobs in the environment setting `MAXIMUM_PARALLEL_BUILDS`. This is (by default) set to 4.
+1. Does not require any additional setup or configuration, it-just-works.
+2. Generally fast networking to send sources as its usually local. 
+3. Less moving parts.
+4. Build cache persists for the life of the node, improving performance of pulls.
 
-### Fail safe precautions
+**Cons**
 
-You may also want to consider tainting the node containing the build shuttle.  This is a fail-safe precaution that can be taken which will prevent the kube scheduler from accidently overcommiting the node that the buildshuttle is on.
+1. If you're using kubernetes the CPU/memory cost is hidden from kubernetes. 
+2. The node's host docker daemon may not be setup in an optimal way to build images, and may be slow.
+3. It could interfer with any other processes running on the node as it can be CPU/memory intensive.
+4. Since the builds run on the host this could pose a security risk.
+
+While the default, this is not the best practice to run the builds on the host of the build shuttle. Mainly due to kubernetes not being fully aware and potentially overcommitting the node and causing other processes to be interrupted during builds.
+
+This however might be ideal if you're running a small test cluster or have very infrequent builds which are small and isolated and cannot afford or do not want to run seperate processes for building. This also would require that your builds are done by trusted parties, where the commands being ran would not be malicious.
+
+To deploy this type of configuration run `kubectl create -f ./manifests/buildshuttle-using-host.yaml -n akkeris-system`.
+
+Note, it may be prudent to taint the node the build shuttle is running on so that no other processes run on it.  This is a fail safe precaution so that if the build shuttle and docker daemon takes up an inordinate amount of memory and CPU it does not conflict with other kubernetes processes running on the node.
+
+### Running buildshuttle with a worker
+
+This option is a great one if you have a modest build scenario that may only have two parallel builds (at most) at any time, and most builds complete within 5-10 minutes (and do not require more than 4GB of ram). 
+
+**Pros**
+
+1. The entire system runs inside of kubernetes.
+2. Kubernetes is aware of the resources necessary for the buildshuttle.
+3. More isolated and secure builds as they run d-in-d. 
+
+**Cons**
+
+1. Build cache does not persist and is reset on each deployment.
+2. Not as performant as an external worker.
+3. Cannot take advantage of file system overlay diffs like a native dockerd can.
+
+
+This type of configuration is an ideal situation for systems with no more than 2-4 parallel builds, and build which do not run over 15 minutes (generally).
+
+To deploy this type of configuration run `kubectl create -f ./manifests/buildshuttle-with-worker.yaml -n akkeris-system`.
+
+
+### Running buildshuttle with an external worker
+
+This option is ideal for production level build systems which need to have scalable fast networking. An external system is provisioned with whatever CPU and memory necessary to perform builds.  For a production level system a 4 CPU, 4GB system is recommended, with a 3.0Ghz processor or above (docker builds rely heavily on gzip and file system diffs and can be heavily reliant on CPU).
+
+**Pros**
+
+1. Can more easily scale load as necessary.
+2. Will not interfer with existing kubernetes processes.
+3. More performant due to native use of dockerd overlays and diffs.
+4. Cache persists as long as system does. 
+
+**Cons**
+
+1. Potentially less secure than running worker inside kubernetes as its emphemeral and persists builds. 
+2. More difficult to setup and administrate.
+
+You'll need to modify the `DOCKER_BUILD_SETTINGS` in the file `./manifests/buildshuttle-with-external-worker.yaml` to set the ip and port (and potentially any other settings) to reach the dockerd (docker daemon) on an external server. If your docker daemon has specific connection requirements (such as mutual TLS authentication or connects over https) see [dockerode](https://github.com/apocas/dockerode#getting-started) for other options you can specify when connecting to the daemon.  See [configuring a docker daemon](https://docs.docker.com/config/daemon/) for more information on creating an external docker daemon worker for buildshuttle.
+
+To deploy this type of configuration (after you've modified the manifest!) run `kubectl create -f ./manifests/buildshuttle-with-external-worker.yaml -n akkeris-system`.
 
 ## References
 
