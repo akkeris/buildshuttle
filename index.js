@@ -70,6 +70,7 @@ async function createBuild(req, res) {
   let cenv = Object.keys(process.env).map((x) => `${x}=${process.env[x]}`)
     .concat([`PAYLOAD=${Buffer.from(typeof req.body === "string" ? req.body : JSON.stringify(req.body), "utf8").toString("base64")}`]);
 
+  console.log('Using DNS servers:', dns.getServers())
   let env = {
     name:`${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`,
     Env:cenv,
