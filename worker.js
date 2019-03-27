@@ -65,6 +65,19 @@ async function build(payload) {
       },
     };
     console.timeEnd(`build.extracting sources ${payload.build_uuid}`);
+
+
+    if(payload.gm_registry_auth) {
+      let auth = payload.gm_registry_auth;
+      if(!auth.serveraddress) {
+        auth.serveraddress = payload.gm_registry_host;
+      }
+      debug(`attempting to authorize ${auth.serveraddress} with ${auth.username}`);
+      console.time(`build.auth`);
+      await docker.checkAuth(auth);
+      console.timeEnd(`build.auth`);
+    }
+
     build_options.nocache = (process.env.TEST_MODE || process.env.NO_CACHE === "true") ? true : false;
     debug('starting build');
     console.time(`build.start ${payload.build_uuid}`);
