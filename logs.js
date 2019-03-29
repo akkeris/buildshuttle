@@ -67,6 +67,9 @@ function sendLogsToKafka(type, app, space, build_number, event) {
           resolve();
       });
     } else {
+      if (process.env.SHOW_BUILD_LOGS) {
+        eventLogMessage(event).trim().split('\n').map((x) => console.log(x))
+      }
       resolve();
     }
   })
