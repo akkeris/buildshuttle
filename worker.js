@@ -121,6 +121,9 @@ async function build(payload) {
     console.timeEnd("logs.close");
     process.exit(0);
   } catch (e) {
+    console.time("logs.close");
+    await logs.close(payload);
+    console.timeEnd("logs.close");
     if(e.message) {
       common.log(`Error during build (docker build process): ${e.message}\n${e.stack}`);
     } else {

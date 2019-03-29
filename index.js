@@ -63,8 +63,7 @@ async function createBuild(req, res) {
   }
   debug('received request:', JSON.stringify(req.body));
   let Binds = [
-    "/var/run/docker.sock:/run/docker.sock",
-    "/etc/resolv.conf:/etc/resolv.conf"
+    "/var/run/docker.sock:/run/docker.sock"
   ];
   if(process.env.TEST_MODE) {
     try { fs.mkdirSync("/tmp/archives"); } catch (e) { }

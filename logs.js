@@ -48,12 +48,15 @@ function open(payload) {
 function sendLogsToKafka(type, app, space, build_number, event) {
   return new Promise((resolve, reject) => {
     if(kafkaConnection) {
-      kafkaConnection.send([{"topic":(process.env.KAFKA_TOPIC || "alamobuildlogs"), "messages":[JSON.stringify({
+      let msgs = eventLogMessage(event).trim().split('\n').map((x) => {
+        return {"topic":(process.env.KAFKA_TOPIC || "alamobuildlogs"), "messages":[JSON.stringify({
           "metadata":`${app}-${space}`, 
           "build":build_number, 
           "job":build_number.toString(),
-          "message":eventLogMessage(event).trim(),
-        })]}], (err) => {
+          "message":x,
+        })]}
+      })
+      kafkaConnection.send(msgs, (err) => {
           if(err) {
             console.log(`Unable to send traffic to kafka: ${e.message}\n${e.stack}`);
             process.exit(1);
@@ -81,9 +84,13 @@ async function sendLogsToS3(payload, event) {
 }
 
 async function close(payload) {
-  debug(`closing and flushing logs for ${payload.build_uuid}`);
-  await flushLogsToS3(payload);
-  await sendLogsToKafka('finished', payload.app, payload.space, payload.build_number, {"stream":"Build finished"});
+  try {
+    debug(`closing and flushing logs for ${payload.build_uuid}`);
+    await flushLogsToS3(payload);
+    await sendLogsToKafka('finished', payload.app, payload.space, payload.build_number, {"stream":"Build finished"});
+  } catch (e) {
+    console.log(`Unable to close logs: ${e.message}\m${e.stack}`);
+  }
 }
 
 async function send(payload, type, event) {
