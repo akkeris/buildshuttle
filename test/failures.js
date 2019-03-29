@@ -174,7 +174,7 @@ describe("test failures for builds", function() {
     pending = false
     failure = false
     let listener = (body) => {
-      expect(body.id).equal(1)
+      expect(body.id).equal(3)
       expect(body.type).equal("buildshuttle")
       if(body.status === "pending") {
         pending = true;
@@ -200,15 +200,15 @@ describe("test failures for builds", function() {
         "sources":"https://github.com/akkeris/build-app-test-repo/archive/failure.zip",
         "app":"test",
         "space":"test",
-        "app_uuid":"56bce159-87a7-437f-bed3-2da4e44d9ddd",
+        "app_uuid":"56bce159-87a7-437f-bed3-2da4e44d9d33",
         "gm_registry_host":process.env.DOCKER_HOST || "docker.io",
         "gm_registry_repo":process.env.DOCKER_ORG || "akkeris",
         "gm_registry_auth":{
           "username":process.env.DOCKER_LOGIN,
           "password":process.env.DOCKER_PASS
         },
-        "build_number":1,
-        "build_uuid":"56bce159-87a7-437f-bed3-2da4e44d9fff",
+        "build_number":3,
+        "build_uuid":"56bce159-87a7-437f-bed3-2da4e44d9ff1",
         "callback":url,
         "callback_auth":"foobar"
       })
