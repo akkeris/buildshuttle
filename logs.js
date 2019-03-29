@@ -76,9 +76,16 @@ function sendLogsToKafka(type, app, space, build_number, event) {
 }
 
 async function flushLogsToS3(payload) {
-  logInterval = null;
-  if(logStream) {
-    await common.putObject(`${payload.app}-${payload.app_uuid}-${payload.build_number}.logs`, logStream);
+  try { 
+    if(logInterval) {
+      clearInterval(logInterval);
+    }
+    logInterval = null;
+    if(logStream) {
+      await common.putObject(`${payload.app}-${payload.app_uuid}-${payload.build_number}.logs`, logStream);
+    }
+  } catch (e) {
+    console.log('Unable to flush logs:', e)
   }
 }
 
@@ -90,13 +97,9 @@ async function sendLogsToS3(payload, event) {
 }
 
 async function close(payload) {
-  try {
-    debug(`closing and flushing logs for ${payload.build_uuid}`);
-    await flushLogsToS3(payload);
-    await sendLogsToKafka('finished', payload.app, payload.space, payload.build_number, {"stream":"Build finished"});
-  } catch (e) {
-    console.log(`Unable to close logs: ${e.message}\m${e.stack}`);
-  }
+  debug(`closing and flushing logs for ${payload.build_uuid}`);
+  await flushLogsToS3(payload);
+  await sendLogsToKafka('finished', payload.app, payload.space, payload.build_number, {"stream":"Build finished"});
 }
 
 async function send(payload, type, event) {

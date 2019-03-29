@@ -98,18 +98,10 @@ async function build(payload) {
     let buildStream = await docker.buildImage({"context":"/tmp/build"}, build_options);
     console.timeEnd(`build.start ${payload.build_uuid}`);
     debug('started build');
-    console.time(`build.uploading sources ${payload.build_uuid}`);
-    await common.putObject(payload.build_uuid, fs.createReadStream("/tmp/sources"));
-    console.timeEnd(`build.uploading sources ${payload.build_uuid}`);
+    let sourcePushPromise = common.putObject(payload.build_uuid, fs.createReadStream("/tmp/sources"));
     console.time(`build.building ${payload.build_uuid}`);
-    await follow(buildStream, logs.send.bind(null, payload, "build"));
+    let out = await follow(buildStream, logs.send.bind(null, payload, "build"));
     console.timeEnd(`build.building ${payload.build_uuid}`);
-    await Promise.all([
-      (async () => {
-      })(),
-      (async () => {
-      })()
-    ]);
     debug(`pushing image ${repo}:${tag}`);
     console.time(`build.pushing ${repo}:${tag}`);
     await follow(await (docker.getImage(`${repo}:${tag}`)).push({tag}, undefined, payload.gm_registry_auth), 
@@ -119,11 +111,10 @@ async function build(payload) {
     console.time("logs.close");
     await logs.close(payload);
     console.timeEnd("logs.close");
+    await sourcePushPromise;
     process.exit(0);
   } catch (e) {
-    console.time("logs.close");
-    await logs.close(payload);
-    console.timeEnd("logs.close");
+    await new Promise((res) => setTimeout(res, 3000));
     if(e.message) {
       common.log(`Error during build (docker build process): ${e.message}\n${e.stack}`);
     } else {
