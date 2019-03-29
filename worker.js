@@ -98,16 +98,16 @@ async function build(payload) {
     let buildStream = await docker.buildImage({"context":"/tmp/build"}, build_options);
     console.timeEnd(`build.start ${payload.build_uuid}`);
     debug('started build');
+    console.time(`build.uploading sources ${payload.build_uuid}`);
+    await common.putObject(payload.build_uuid, fs.createReadStream("/tmp/sources"));
+    console.timeEnd(`build.uploading sources ${payload.build_uuid}`);
+    console.time(`build.building ${payload.build_uuid}`);
+    await follow(buildStream, logs.send.bind(null, payload, "build"));
+    console.timeEnd(`build.building ${payload.build_uuid}`);
     await Promise.all([
       (async () => {
-        console.time(`build.uploading sources ${payload.build_uuid}`);
-        await common.putObject(payload.build_uuid, fs.createReadStream("/tmp/sources"));
-        console.timeEnd(`build.uploading sources ${payload.build_uuid}`);
       })(),
       (async () => {
-        console.time(`build.building ${payload.build_uuid}`);
-        await follow(buildStream, logs.send.bind(null, payload, "build"));
-        console.timeEnd(`build.building ${payload.build_uuid}`);
       })()
     ]);
     debug(`pushing image ${repo}:${tag}`);
