@@ -35,7 +35,7 @@ function open(payload) {
           process.exit(1);
         });
       } else {
-        debug(`kafka was not provided, not streaming logs`);
+        debug("kafka was not provided, not streaming logs");
         resolve();
       }
     } catch (e) {
@@ -72,7 +72,7 @@ function sendLogsToKafka(type, app, space, build_number, event) {
       }
       resolve();
     }
-  })
+  });
 }
 
 async function flushLogsToS3(payload) {
@@ -100,7 +100,7 @@ async function close(payload) {
   debug(`closing and flushing logs for ${payload.build_uuid}`);
   await flushLogsToS3(payload);
   debug(`flushed s3 logs for ${payload.build_uuid}`);
-  await sendLogsToKafka('finished', payload.app, payload.space, payload.build_number, {"stream":"Build finished"});
+  await sendLogsToKafka("finished", payload.app, payload.space, payload.build_number, {"stream":"Build finished"});
   debug(`flushed kafka logs for ${payload.build_uuid}`);
 }
 

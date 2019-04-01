@@ -54,7 +54,7 @@ async function build(payload) {
     // will remove all the contents backc to /tmp/build.
     await logs.send(payload, "build",
       {"status":execSync("if [ `ls -d */ | wc -l` = \"1\" ]; then if [ `ls . | wc -l` = \"1\" ]; then mv */.[!.]* . || true; mv */* . || true; fi fi", {cwd:"/tmp/build", stdio:["pipe", "pipe", "pipe"]})});
-    debug('extracted sources');
+    debug("extracted sources");
     let newBuildArgs = calcBuildArgs(payload.build_args || {});
     fs.writeFileSync("/tmp/build/Dockerfile", calcDockerFile(newBuildArgs, "/tmp/build/Dockerfile"));
     let repo = `${payload.gm_registry_host}/${payload.gm_registry_repo}/${payload.app}-${payload.app_uuid}`;
@@ -85,7 +85,7 @@ async function build(payload) {
         common.log(`Error, unable to authorize ${auth.serveraddress}: ${e.message}\n${e.stack}`);
       }
       console.timeEnd("build.auth");
-      if(!auth.serveraddress.startsWith('https://')) {
+      if(!auth.serveraddress.startsWith("https://")) {
         console.time("build.auth(https)");
         auth.serveraddress = `https://${auth.serveraddress}`;
         try {
@@ -237,7 +237,7 @@ async function execute() {
           common.log(`Error from build (fetching stream returned invalid code ${res.statuCode} ${res.status}).`);
           process.exit(127);
         } else {
-          common.log(`No response was returned.`);
+          common.log("No response was returned.");
           process.exit(127);
         }
       }).on("error", (e) => {

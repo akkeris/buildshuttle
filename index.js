@@ -122,7 +122,7 @@ async function createBuild(req, res) {
         }
         common.log(`Build finished (code: ${data ? data.StatusCode : "unknown"}): ${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`);
       } catch (e) {
-        console.error(`General error reporting build status: ${e.message}\n${e.stack}`)
+        console.error(`General error reporting build status: ${e.message}\n${e.stack}`);
       }
     }).on("start", (container) => {
       res.send({"status":"ok"});
