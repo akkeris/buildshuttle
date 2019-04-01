@@ -17,7 +17,7 @@ The build shuttle is a private API used by the controller-api to build docker im
 *  `MAXIMUM_PARALLEL_BUILDS` - The maximum amount of parallel builds, this defaults to 4.
 *  `DEBUG` - This uses the node [debug](https://www.npmjs.com/package/debug) module. Set to `DEBUG=*` to get all debug information, or `DEBUG=buildshuttle,buildshuttle-worker` to just receive debug information on the build shuttle.
 * `TIMEOUT_IN_MS` - The timeout for builds, this is in milliseconds, the default is 20 minutes (or 1000 * 60 * 20).
-* `KAFKA_TOPIC` - The topic ot stream build logs to. 
+* `KAFKA_TOPIC` - The topic to stream build logs to. 
 * `SHOW_BUILD_LOGS` - Whether to show the build logs as part of the worker process.
 
 ## Starting
@@ -166,11 +166,9 @@ This option is a great one if you have a modest build scenario that may only hav
 2. Not as performant as an external worker.
 3. Cannot take advantage of file system overlay diffs like a native dockerd can.
 
-
 This type of configuration is an ideal situation for systems with no more than 2-4 parallel builds, and build which do not run over 15 minutes (generally).
 
 To deploy this type of configuration run `kubectl create -f ./manifests/buildshuttle-with-worker.yaml -n akkeris-system`.
-
 
 ### Running buildshuttle with an external worker
 

@@ -1,9 +1,9 @@
 const fs = require("fs");
 const common = require("./common.js");
-const debug = require('debug')('buildshuttle-worker');
+const debug = require("debug")("buildshuttle-worker");
 let kafka = require("kafka-node");
 if(process.env.TEST_MODE) {
-  console.log('Running in test mode (using test kafka broker)');
+  console.log("Running in test mode (using test kafka broker)");
   kafka = require("./test/support/kafka-mock.js");
 }
 
@@ -20,13 +20,13 @@ function eventLogMessage(event) {
 }
 
 function open(payload) {
-  debug(`opening logging end points`);
+  debug("opening logging end points");
   return new Promise((resolve, reject) => {
     try {
       if(payload.kafka_hosts) {
         debug(`connecting to kafka on ${payload.kafka_hosts}`);
         kafkaConnection = new kafka.Producer(new kafka.KafkaClient({kafkaHost:payload.kafka_hosts}), {"requireAcks":0});
-        kafkaConnection.on('ready', () => {
+        kafkaConnection.on("ready", () => {
           debug(`connected to kafka on ${payload.kafka_hosts}`);
           resolve();
         });
@@ -50,25 +50,25 @@ function sendLogsToKafka(type, app, space, build_number, event) {
     if(kafkaConnection) {
       let msgs = eventLogMessage(event).trim().split("\n").map((x) => {
         if (process.env.SHOW_BUILD_LOGS) {
-          console.log(x)
+          console.log(x);
         }
         return {"topic":(process.env.KAFKA_TOPIC || "alamobuildlogs"), "messages":[JSON.stringify({
           "metadata":`${app}-${space}`, 
           "build":build_number, 
           "job":build_number.toString(),
           "message":x,
-        })]}
+        })]};
       })
       kafkaConnection.send(msgs, (err) => {
           if(err) {
-            console.log(`Unable to send traffic to kafka: ${e.message}\n${e.stack}`);
+            console.log(`Unable to send traffic to kafka: ${err.message}\n${err.stack}`);
             process.exit(1);
           }
           resolve();
       });
     } else {
       if (process.env.SHOW_BUILD_LOGS) {
-        eventLogMessage(event).trim().split('\n').map((x) => console.log(x))
+        eventLogMessage(event).trim().split("\n").map((x) => console.log(x));
       }
       resolve();
     }
@@ -85,7 +85,7 @@ async function flushLogsToS3(payload) {
       await common.putObject(`${payload.app}-${payload.app_uuid}-${payload.build_number}.logs`, logStream);
     }
   } catch (e) {
-    console.log('Unable to flush logs:', e)
+    console.log(`Error, unable to flush logs: ${e.message}\n${e.stack}`);
   }
 }
 
@@ -119,7 +119,7 @@ async function send(payload, type, event) {
     await sendLogsToKafka(event.type, payload.app, payload.space, payload.build_number, event);
     await sendLogsToS3(payload, event);
   } catch (e) {
-    console.log(`Error sending logs ${e.message}\n${e.stack}`)
+    console.log(`Error sending logs ${e.message}\n${e.stack}`);
   }
 }
 
@@ -127,4 +127,4 @@ module.exports = {
   send,
   close,
   open,
-}
+};

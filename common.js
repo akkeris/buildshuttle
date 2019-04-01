@@ -1,5 +1,5 @@
 const request = require("request-promise-native");
-const debug = require('debug')('buildshuttle-worker');
+const debug = require("debug")("buildshuttle-worker");
 const aws = require("aws-sdk");
 const fs = require("fs");
 

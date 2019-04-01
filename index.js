@@ -9,10 +9,10 @@ const dockerBuildImage = process.env.DOCKER_BUILD_IMAGE || "akkeris/buildshuttle
 const builders = [];
 const common = require("./common.js");
 const fs = require("fs");
-const dns = require('dns');
-const utils = require('util');
+const dns = require("dns");
+const utils = require("util");
 const resolve = utils.promisify(dns.lookup);
-const debug = require('debug')('buildshuttle');
+const debug = require("debug")("buildshuttle");
 
 async function stopDockerBuild(container) {
   try {
@@ -67,11 +67,11 @@ async function createBuild(req, res) {
     let org_kafka_hosts = req.body.kafka_hosts;
     req.body.kafka_hosts = (await Promise.all(req.body.kafka_hosts.split(",").map(async (x) => {
       let [host, port = 9092] = x.split(":");
-      return `${(await resolve(host)).address}:${port}`
+      return `${(await resolve(host)).address}:${port}`;
     }))).join(",");
-    debug(`mapped ${org_kafka_hosts} to ${req.body.kafka_hosts}`)
+    debug(`mapped ${org_kafka_hosts} to ${req.body.kafka_hosts}`);
   }
-  debug('received request:', JSON.stringify(req.body));
+  debug("received request:", JSON.stringify(req.body));
   let Binds = [
     "/var/run/docker.sock:/run/docker.sock"
   ];
@@ -81,7 +81,7 @@ async function createBuild(req, res) {
   }
   let cenv = Object.keys(process.env).map((x) => `${x}=${process.env[x]}`)
     .concat([`PAYLOAD=${Buffer.from(typeof req.body === "string" ? req.body : JSON.stringify(req.body), "utf8").toString("base64")}`]);
-  debug('Using dns servers for worker build:', dns.getServers());
+  debug("Using dns servers for worker build:", dns.getServers());
   let env = {
     name:`${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`,
     Env:cenv,
@@ -179,7 +179,7 @@ async function stopBuild(req, res) {
 async function getBuildLogs(req, res) {
   try {
     // TODO: validate this input.
-    debug(`fetching ${req.params.app_id}-${req.params.number}.logs`)
+    debug(`fetching ${req.params.app_id}-${req.params.number}.logs`);
     let stream = await common.getObject(`${req.params.app_id}-${req.params.number}.logs`);
     stream.on("error", (err) => {
       if(err.message && err.message.indexOf("no such file") === -1) {

@@ -6,8 +6,8 @@ const http = require("http");
 const https = require("https");
 const { execSync } = require("child_process");
 const fs = require("fs");
-const logs = require('./logs.js');
-const debug = require('debug')('buildshuttle-worker');
+const logs = require("./logs.js");
+const debug = require("debug")("buildshuttle-worker");
 const timeoutInMs = process.env.TIMEOUT_IN_MS ? parseInt(process.env.TIMEOUT_IN_MS, 10) : (20 * 60 * 1000); // default is 20 minutes.
 
 function calcBuildArgs(buildArgs) {
@@ -78,31 +78,31 @@ async function build(payload) {
         auth.serveraddress = payload.gm_registry_host;
       }
       debug(`attempting to authorize ${auth.serveraddress} with ${auth.username}`);
-      console.time(`build.auth`);
+      console.time("build.auth");
       try {
         await docker.checkAuth(auth);
       } catch (e) {
         common.log(`Error, unable to authorize ${auth.serveraddress}: ${e.message}\n${e.stack}`);
       }
-      console.timeEnd(`build.auth`);
+      console.timeEnd("build.auth");
       if(!auth.serveraddress.startsWith('https://')) {
-        console.time(`build.auth(https)`);
+        console.time("build.auth(https)");
         auth.serveraddress = `https://${auth.serveraddress}`;
         try {
           await docker.checkAuth(auth);
         } catch (e) {
           common.log(`Error, unable to authorize ${auth.serveraddress}: ${e.message}\n${e.stack}`);
         }
-        console.timeEnd(`build.auth(https)`);
+        console.timeEnd("build.auth(https)");
       }
     }
 
     build_options.nocache = (process.env.TEST_MODE || process.env.NO_CACHE === "true") ? true : false;
-    debug('starting build');
+    debug("starting build");
     console.time(`build.start ${payload.build_uuid}`);
     let buildStream = await docker.buildImage({"context":"/tmp/build"}, build_options);
     console.timeEnd(`build.start ${payload.build_uuid}`);
-    debug('started build');
+    debug("started build");
     let sourcePushPromise = common.putObject(payload.build_uuid, fs.createReadStream("/tmp/sources"));
     console.time(`build.building ${payload.build_uuid}`);
     let out = await follow(buildStream, logs.send.bind(null, payload, "build"));
@@ -132,7 +132,7 @@ async function build(payload) {
 }
 
 async function buildFromDocker(payload) {
-  debug('build pulling and pushing existing image');
+  debug("build pulling and pushing existing image");
   try {
     await logs.open(payload);
     let parsedUrl = url.parse(payload.sources);
@@ -174,9 +174,9 @@ async function buildFromDocker(payload) {
       logs.send.bind(null, payload, "push"));
     console.timeEnd(`buildFromDocker.pushing image (latest) ${payload.sources.replace("docker://", "")}`);
     debug(`pushed image ${repo}:latest`);
-    console.time(`logs.close`);
+    console.time("logs.close");
     await logs.close(payload);
-    console.timeEnd(`logs.close`);
+    console.timeEnd("logs.close");
     process.exit(0);
   } catch (e) {
     common.log(`Error during build (from docker): ${e.message}\n${e.stack}`);
@@ -186,18 +186,18 @@ async function buildFromDocker(payload) {
 }
 
 async function buildFromStream(payload, stream) {
-  debug('downloading sources from stream');
+  debug("downloading sources from stream");
   console.time(`buildFromStream.downloading sources for ${payload.build_uuid}`);
   let dest = fs.createWriteStream("/tmp/sources");
   dest.on("close", () => {
-    debug('downloaded sources from stream');
+    debug("downloaded sources from stream");
     console.timeEnd(`buildFromStream.downloading sources for ${payload.build_uuid}`);
-    build(payload)
+    build(payload);
   });
   dest.on("error", (e) => {
     common.log(`Error during build (attempting to stream to sources): ${e.message}\n${e.stack}`);
     process.exit(127);
-  })
+  });
   stream.pipe(dest);
   stream.on("error", (e) => {
     common.log(`Error during build (attempting to stream from http): ${e.message}\n${e.stack}`);
@@ -206,7 +206,7 @@ async function buildFromStream(payload, stream) {
 }
 
 async function buildFromBuffer(payload, buffer) {
-  debug('fetching payload from buffer (data uri)');
+  debug("fetching payload from buffer (data uri)");
   fs.writeFileSync("/tmp/sources", buffer);
   build(payload);
 }
@@ -254,7 +254,7 @@ async function execute() {
 debug(`worker started with timeout: ${timeoutInMs/1000/60} seconds`);
 setTimeout(() => {
   try {
-    common.log(`Build timed out (failed).`);
+    common.log("Build timed out (failed).");
     process.exit(126);
   } catch (e) {
     common.log(`Failed to terminate build on timeout: ${e.message}\n${e.stack}`);
