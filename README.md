@@ -188,7 +188,7 @@ This option is ideal for production level build systems which need to have scala
 1. Potentially less secure than running worker inside kubernetes as its emphemeral and persists builds. 
 2. More difficult to setup and administrate.
 
-You'll need to modify the `DOCKER_BUILD_SETTINGS` in the file `./manifests/buildshuttle-with-external-worker.yaml` to set the ip and port (and potentially any other settings) to reach the dockerd (docker daemon) on an external server. If your docker daemon has specific connection requirements (such as mutual TLS authentication or connects over https) see [dockerode](https://github.com/apocas/dockerode#getting-started) for other options you can specify when connecting to the daemon.  See [configuring a docker daemon](https://docs.docker.com/config/daemon/) for more information on creating an external docker daemon worker for buildshuttle.
+You'll need to modify the `DOCKER_BUILD_SETTINGS` in the file `./manifests/buildshuttle-with-external-worker.yaml` to set the ip and port (and potentially any other settings) to reach the dockerd (docker daemon) on an external server. If your docker daemon has specific connection requirements (such as mutual TLS authentication or connects over https) see [dockerode](https://github.com/apocas/dockerode#getting-started) for other options you can specify when connecting to the daemon.  See [configuring a docker daemon](https://docs.docker.com/config/daemon/) for more information on creating an external docker daemon worker for buildshuttle. For a simple example read the section **Creating an external worker** below.
 
 To deploy this type of configuration (after you've modified the manifest!) run `kubectl create -f ./manifests/buildshuttle-with-external-worker.yaml -n akkeris-system`.
 
@@ -199,3 +199,10 @@ https://jpetazzo.github.io/2015/09/03/do-not-use-docker-in-docker-for-ci/
 https://applatix.com/case-docker-docker-kubernetes-part/
 
 https://applatix.com/case-docker-docker-kubernetes-part-2/
+
+### Creating an external worker
+
+1. Create a `m4.xlarge` EC2 instance with the Amazon Linux 2 AMI (we tested on 2018.03)
+2. SSH in and run `sudo yum install docker`
+3. Modify `/etc/sysconfig/docker` and change the `OPTIONS` variable to `OPTIONS="--host tcp://0.0.0.0:2375 --host unix:///var/run/docker.sock --max-concurrent-downloads 20 --max-concurrent-uploads 20 --default-ulimit nofile=1024:4096"`.  This will expose the docker builder without authentication! Do not expose this publically! If you don't know what this means, stop right now as you'll be exposing a major security hole. Ensure the security group exposes port 2375 to the IP's of the buildshuttle.
+4. Run `service docker start`

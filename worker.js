@@ -42,6 +42,10 @@ async function build(payload) {
   try {
     await logs.open(payload);
     debug("logs opened");
+    logs.send(payload, "build", {"stream":`Generating build for ${payload.app}-${payload.space} build uuid ${payload.build_uuid}`});
+    if(payload.repo) {
+      logs.send(payload, "build", {"stream":`Getting source code for ${payload.repo}/${payload.branch} SHA ${payload.sha}...`});
+    }
     console.time(`build.extracting sources ${payload.build_uuid}`);
     await logs.send(payload, "build", 
       {"status":execSync("tar zxf /tmp/sources -C /tmp/build || unzip /tmp/sources -d /tmp/build", {cwd:"/tmp", stdio:["pipe", "pipe", "pipe"]})});

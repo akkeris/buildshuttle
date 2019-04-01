@@ -114,7 +114,7 @@ describe("builds logs", function() {
         "app":"test",
         "space":"test",
         "app_uuid":"abbce159-87a7-437f-bed3-2da4e44dcfff",
-        "kafka_hosts":"nonexistant",
+        "kafka_hosts":"www.example.com:1523,www.google.com:5551,www.amazon.com",
         "gm_registry_host":process.env.DOCKER_HOST || "docker.io",
         "gm_registry_repo":process.env.DOCKER_ORG || "akkeris",
         "gm_registry_auth":{
