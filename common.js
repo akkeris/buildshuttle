@@ -42,8 +42,9 @@ function putObject(Key, Body) {
       } else {
         o.write(Body);
       }
-      o.on("close", () => resolve());
-      o.on("error", (e) => reject(e));
+      o.on("close", resolve);
+      o.on("error", reject);
+      o.end();
     });
   }
   return (new aws.S3({accessKeyId:process.env.S3_ACCESS_KEY, secretAccessKey:process.env.S3_SECRET_KEY}))

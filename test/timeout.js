@@ -1,4 +1,5 @@
 if(process.env.SMOKE_TESTS && process.env.TIMEOUT_TESTS) {
+  process.env.TIMEOUT_IN_MS = 10;
   const test = require('./support/init.js')
   const request = require('request-promise-native')
   const expect = require("chai").expect;
@@ -11,7 +12,6 @@ if(process.env.SMOKE_TESTS && process.env.TIMEOUT_TESTS) {
     test.events.on('loaded', (u) => { url = u });
     
     it("test creating a build", async () => {
-      process.env.TIMEOUT_IN_MS = 10;
       test.events.removeAllListeners('callback')
       let listener = (body) => {
         expect(body.id).equal(1)
@@ -37,7 +37,7 @@ if(process.env.SMOKE_TESTS && process.env.TIMEOUT_TESTS) {
         },
         "uri":"http://localhost:9000",
         "body":JSON.stringify({
-          "sources":"https://github.com/akkeris/preview-app-test-repo/archive/master.zip",
+          "sources":"https://github.com/akkeris/build-app-test-repo/archive/master.zip",
           "app":"test",
           "space":"test",
           "app_uuid":"56bce159-87a7-437f-bed3-2da4e44d9cf3",

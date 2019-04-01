@@ -99,7 +99,9 @@ async function sendLogsToS3(payload, event) {
 async function close(payload) {
   debug(`closing and flushing logs for ${payload.build_uuid}`);
   await flushLogsToS3(payload);
+  debug(`flushed s3 logs for ${payload.build_uuid}`);
   await sendLogsToKafka('finished', payload.app, payload.space, payload.build_number, {"stream":"Build finished"});
+  debug(`flushed kafka logs for ${payload.build_uuid}`);
 }
 
 async function send(payload, type, event) {

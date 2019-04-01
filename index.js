@@ -11,7 +11,6 @@ const common = require("./common.js");
 const fs = require("fs");
 const dns = require('dns');
 const debug = require('debug')('buildshuttle');
-const timeoutInMs = process.env.TIMEOUT_IN_MS ? parseInt(process.env.TIMEOUT_IN_MS, 10) : (20 * 60 * 1000); // default is 20 minutes.
 
 async function stopDockerBuild(container) {
   try {
@@ -116,17 +115,6 @@ async function createBuild(req, res) {
       }
     }).on("start", (container) => {
       res.send({"status":"ok"});
-      timeout = setTimeout(async () => {
-        try {
-          if (timeout) {
-            common.log(`Build timed out (failed): ${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`);
-            await stopDockerBuild(container);
-            await removeDockerBuild(container);
-          }
-        } catch (e) {
-          common.log(`Failed to terminate build on timeout: ${e.message}\n${e.stack}`);
-        }
-      }, timeoutInMs);
     });
   } catch (e) {
     common.log(`Failed to submit build.\n${e}`);

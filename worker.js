@@ -8,6 +8,7 @@ const { execSync } = require("child_process");
 const fs = require("fs");
 const logs = require('./logs.js');
 const debug = require('debug')('buildshuttle-worker');
+const timeoutInMs = process.env.TIMEOUT_IN_MS ? parseInt(process.env.TIMEOUT_IN_MS, 10) : (20 * 60 * 1000); // default is 20 minutes.
 
 function calcBuildArgs(buildArgs) {
   if (process.env.EXTRA_BUILD_ARGS) {
@@ -40,7 +41,7 @@ async function build(payload) {
   debug(`beginning general build task ${payload.build_uuid}`);
   try {
     await logs.open(payload);
-    debug('logs opened');
+    debug("logs opened");
     console.time(`build.extracting sources ${payload.build_uuid}`);
     await logs.send(payload, "build", 
       {"status":execSync("tar zxf /tmp/sources -C /tmp/build || unzip /tmp/sources -d /tmp/build", {cwd:"/tmp", stdio:["pipe", "pipe", "pipe"]})});
@@ -114,7 +115,9 @@ async function build(payload) {
     await sourcePushPromise;
     process.exit(0);
   } catch (e) {
-    await new Promise((res) => setTimeout(res, 3000));
+    console.time("logs.close");
+    await logs.close(payload);
+    console.timeEnd("logs.close");
     if(e.message) {
       common.log(`Error during build (docker build process): ${e.message}\n${e.stack}`);
     } else {
@@ -244,9 +247,17 @@ async function execute() {
   }
 }
 
-debug(`worker started`);
+debug(`worker started with timeout: ${timeoutInMs/1000/60} seconds`);
+setTimeout(() => {
+  try {
+    common.log(`Build timed out (failed).`);
+    process.exit(126);
+  } catch (e) {
+    common.log(`Failed to terminate build on timeout: ${e.message}\n${e.stack}`);
+  }
+}, timeoutInMs);
 
 execute().catch((err) => {
   console.log(err);
-  process.exit(127);
+  process.exit(125);
 });
