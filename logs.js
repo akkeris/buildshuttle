@@ -1,130 +1,163 @@
 const fs = require("fs");
 const common = require("./common.js");
 const debug = require("debug")("buildshuttle-worker");
+const stream = require("stream");
+
 let kafka = require("kafka-node");
 if(process.env.TEST_MODE) {
   console.log("Running in test mode (using test kafka broker)");
   kafka = require("./test/support/kafka-mock.js");
 }
 
-let kafkaConnection = null;
-let logInterval = null;
-let logStream = "";
+class Logs extends stream.Writable {
 
-function eventLogMessage(event) {
-  let message = [event.status, event.progress, event.stream].filter((x) => !!x).reduce((a, arg) => `${a} ${arg}`, "").trim();
-  if(message !== "") {
-    message = `${message}\n`;
+  constructor(kafkaHost, app, app_uuid, space, build_uuid, build_number) {
+    super();
+    this.kafkaHost = kafkaHost;
+    this.app = app;
+    this.app_uuid = app_uuid;
+    this.space = space;
+    this.build_uuid = build_uuid;
+    this.build_number = build_number;
+    this._open = false;
+    this.kafkaConnection = null;
+    this.logInterval = null;
+    this.logStream = "";
   }
-  return message;
-}
 
-function open(payload) {
-  debug("opening logging end points");
-  return new Promise((resolve, reject) => {
-    try {
-      if(payload.kafka_hosts) {
-        debug(`connecting to kafka on ${payload.kafka_hosts}`);
-        kafkaConnection = new kafka.Producer(new kafka.KafkaClient({kafkaHost:payload.kafka_hosts}), {"requireAcks":0});
-        kafkaConnection.on("ready", () => {
-          debug(`connected to kafka on ${payload.kafka_hosts}`);
-          resolve();
+  _write(chunk, enc, next) {
+    if(!this._open) {
+      this.open().then(() => {
+        this.send({"stream":chunk.toString()}).then(next).catch((e) => {
+          console.log(`Error sending stream: ${e.message}\n${e.stack}`);
         });
-        kafkaConnection.on("error", (e) => {
-          console.log(`A kafka error occured: ${e.message}\n${e.stack}`);
-          process.exit(1);
+      }).catch((e) => {
+        console.log(`Error writing stream: ${e.message}\n${e.stack}`);
+      });
+    }
+    this.send({"stream":chunk.toString()}).then(next).catch((e) => {
+      console.log(`Error sending stream: ${e.message}\n${e.stack}`);
+    });
+  }
+
+  eventLogMessage(event) {
+    let message = [event.status, event.progress, event.stream].filter((x) => !!x).reduce((a, arg) => `${a} ${arg}`, "").trim();
+    if(message !== "") {
+      message = `${message}\n`;
+    }
+    return message;
+  }
+
+  open() {
+    if(this._open) {
+      return new Promise((res) => res);
+    }
+    debug("opening logging end points");
+    return new Promise((resolve, reject) => {
+      try {
+        if(this.kafkaHost) {
+          debug(`connecting to kafka on ${this.kafkaHost}`);
+          this.kafkaConnection = new kafka.Producer(new kafka.KafkaClient({kafkaHost:this.kafkaHost}), {"requireAcks":0});
+          this.kafkaConnection.on("ready", () => {
+            debug(`connected to kafka on ${this.kafkaHost}`);
+            this._open = true;
+            resolve();
+          });
+          this.kafkaConnection.on("error", (e) => {
+            this._open = false;
+            console.log(`A kafka error occured: ${e.message}\n${e.stack}`);
+            process.exit(1);
+          });
+        } else {
+          this._open = true;
+          debug("kafka was not provided, not streaming logs");
+          resolve();
+        }
+      } catch (e) {
+        this._open = false;
+        console.log(e);
+        reject(e);
+      }
+    });
+  }
+
+  sendLogsToKafka(event) {
+    return new Promise((resolve, reject) => {
+      if(this.kafkaConnection) {
+        let msgs = this.eventLogMessage(event).trim().split("\n").map((x) => {
+          if (process.env.SHOW_BUILD_LOGS) {
+            console.log(x);
+          }
+          return {"topic":(process.env.KAFKA_TOPIC || "alamobuildlogs"), "messages":[JSON.stringify({
+            "metadata":`${this.app}-${this.space}`, 
+            "build":this.build_number, 
+            "job":this.build_number.toString(),
+            "message":x,
+          })]};
+        });
+        this.kafkaConnection.send(msgs, (err) => {
+            if(err) {
+              console.log(`Unable to send traffic to kafka: ${err.message}\n${err.stack}`);
+              process.exit(1);
+            }
+            resolve();
         });
       } else {
-        debug("kafka was not provided, not streaming logs");
+        if (process.env.SHOW_BUILD_LOGS) {
+          this.eventLogMessage(event).trim().split("\n").map((x) => console.log(x));
+        }
         resolve();
       }
-    } catch (e) {
-      console.log(e);
-      reject(e);
-    }
-  });
-}
+    });
+  }
 
-function sendLogsToKafka(type, app, space, build_number, event) {
-  return new Promise((resolve, reject) => {
-    if(kafkaConnection) {
-      let msgs = eventLogMessage(event).trim().split("\n").map((x) => {
-        if (process.env.SHOW_BUILD_LOGS) {
-          console.log(x);
-        }
-        return {"topic":(process.env.KAFKA_TOPIC || "alamobuildlogs"), "messages":[JSON.stringify({
-          "metadata":`${app}-${space}`, 
-          "build":build_number, 
-          "job":build_number.toString(),
-          "message":x,
-        })]};
-      });
-      kafkaConnection.send(msgs, (err) => {
-          if(err) {
-            console.log(`Unable to send traffic to kafka: ${err.message}\n${err.stack}`);
-            process.exit(1);
-          }
-          resolve();
-      });
-    } else {
-      if (process.env.SHOW_BUILD_LOGS) {
-        eventLogMessage(event).trim().split("\n").map((x) => console.log(x));
+  async flushLogsToS3() {
+    try { 
+      if(this.logInterval) {
+        clearInterval(this.logInterval);
       }
-      resolve();
+      this.logInterval = null;
+      if(this.logStream) {
+        await common.putObject(`${this.app}-${this.app_uuid}-${this.build_number}.logs`, this.logStream);
+      }
+    } catch (e) {
+      console.log(`Error, unable to flush logs: ${e.message}\n${e.stack}`);
     }
-  });
-}
+  }
 
-async function flushLogsToS3(payload) {
-  try { 
-    if(logInterval) {
-      clearInterval(logInterval);
+  async sendLogsToS3(event) {
+    if(!this.logInterval) {
+      this.logInterval = setTimeout(this.flushLogsToS3.bind(this), 3000);
     }
-    logInterval = null;
-    if(logStream) {
-      await common.putObject(`${payload.app}-${payload.app_uuid}-${payload.build_number}.logs`, logStream);
+    this.logStream += this.eventLogMessage(event);
+  }
+
+  async close() {
+    debug(`closing and flushing logs for ${this.build_uuid}`);
+    await this.flushLogsToS3();
+    debug(`flushed s3 logs for ${this.build_uuid}`);
+    await this.sendLogsToKafka({"stream":"Build finished"});
+    debug(`flushed kafka logs for ${this.build_uuid}`);
+  }
+
+  async send(payload, type, event) {
+    try {
+      if(event.stream) {
+        event.stream = event.stream.toString().replace(/^[\n]+|[\n]+$/g, "");
+      }
+      if(event.status) {
+        event.status = event.status.toString().replace(/^[\n]+|[\n]+$/g, "");
+      }
+      if(event.progress) {
+        event.progress = event.progress.toString().replace(/^[\n]+|[\n]+$/g, "");
+      }
+      event.type = type;
+      await this.sendLogsToKafka(event);
+      await this.sendLogsToS3(event);
+    } catch (e) {
+      console.log(`Error sending logs ${e.message}\n${e.stack}`);
     }
-  } catch (e) {
-    console.log(`Error, unable to flush logs: ${e.message}\n${e.stack}`);
   }
 }
 
-async function sendLogsToS3(payload, event) {
-  if(!logInterval) {
-    logInterval = setTimeout(flushLogsToS3.bind(null, payload), 3000);
-  }
-  logStream += eventLogMessage(event);
-}
-
-async function close(payload) {
-  debug(`closing and flushing logs for ${payload.build_uuid}`);
-  await flushLogsToS3(payload);
-  debug(`flushed s3 logs for ${payload.build_uuid}`);
-  await sendLogsToKafka("finished", payload.app, payload.space, payload.build_number, {"stream":"Build finished"});
-  debug(`flushed kafka logs for ${payload.build_uuid}`);
-}
-
-async function send(payload, type, event) {
-  try {
-    if(event.stream) {
-      event.stream = event.stream.toString().replace(/^[\n]+|[\n]+$/g, "");
-    }
-    if(event.status) {
-      event.status = event.status.toString().replace(/^[\n]+|[\n]+$/g, "");
-    }
-    if(event.progress) {
-      event.progress = event.progress.toString().replace(/^[\n]+|[\n]+$/g, "");
-    }
-    event.type = type;
-    await sendLogsToKafka(event.type, payload.app, payload.space, payload.build_number, event);
-    await sendLogsToS3(payload, event);
-  } catch (e) {
-    console.log(`Error sending logs ${e.message}\n${e.stack}`);
-  }
-}
-
-module.exports = {
-  send,
-  close,
-  open,
-};
+module.exports = Logs;

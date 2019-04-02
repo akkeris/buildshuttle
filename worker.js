@@ -6,7 +6,7 @@ const http = require("http");
 const https = require("https");
 const { execSync } = require("child_process");
 const fs = require("fs");
-const logs = require("./logs.js");
+const Logs = require("./logs.js");
 const debug = require("debug")("buildshuttle-worker");
 const timeoutInMs = process.env.TIMEOUT_IN_MS ? parseInt(process.env.TIMEOUT_IN_MS, 10) : (20 * 60 * 1000); // default is 20 minutes.
 const dns = require("dns");
@@ -40,8 +40,10 @@ function follow(stream, onProgress) {
 
 async function build(payload) {
   debug(`beginning general build task ${payload.build_uuid}`);
+  const logs = new Logs(payload.kafka_hosts, payload.app, payload.app_uuid, payload.space, payload.build_uuid, payload.build_number);
   try {
-    await logs.open(payload);
+
+    await logs.open();
     debug("logs opened");
     logs.send(payload, "build", {"stream":`Generating build for ${payload.app}-${payload.space} build uuid ${payload.build_uuid}`});
     if(payload.repo) {
@@ -106,12 +108,12 @@ async function build(payload) {
     debug("started build");
     let sourcePushPromise = common.putObject(payload.build_uuid, fs.createReadStream("/tmp/sources"));
     console.time(`build.building ${payload.build_uuid}`);
-    let out = await follow(buildStream, logs.send.bind(null, payload, "build"));
+    let out = await follow(buildStream, logs.send.bind(logs, payload, "build"));
     console.timeEnd(`build.building ${payload.build_uuid}`);
     debug(`pushing image ${repo}:${tag}`);
     console.time(`build.pushing ${repo}:${tag}`);
     await follow(await (docker.getImage(`${repo}:${tag}`)).push({tag}, undefined, payload.gm_registry_auth), 
-      logs.send.bind(null, payload, "push"));
+      logs.send.bind(logs, payload, "push"));
     debug(`pushed image ${repo}:${tag}`);
     console.timeEnd(`build.pushing ${repo}:${tag}`);
     console.time("logs.close");
@@ -134,46 +136,48 @@ async function build(payload) {
 
 async function buildFromDocker(payload) {
   debug("build pulling and pushing existing image");
+  const logs = new Logs(payload.kafka_hosts, payload.app, payload.app_uuid, payload.space, payload.build_uuid, payload.build_number);
   try {
-    await logs.open(payload);
+    await logs.open();
     let parsedUrl = url.parse(payload.sources);
     let pullAuth = {};
-    if ( parsedUrl.auth ) {
+    if (parsedUrl.auth) {
       pullAuth = {"username":parsedUrl.auth.split(":")[0], "password":parsedUrl.auth.split(":")[1]};
     }
     if (payload.docker_login) {
       pullAuth = {"username":payload.docker_login, "password":payload.docker_password};
     }
+    payload.sources = parsedUrl.host + parsedUrl.path;
     
-    debug(`pulling image ${payload.sources.replace("docker://", "")}`);
-    console.time(`buildFromDocker.pulling image ${payload.sources.replace("docker://", "")}`);
-    await follow(await docker.pull(payload.sources.replace("docker://", ""), {}, undefined, pullAuth), 
-      logs.send.bind(null, payload, "pull"));
-    console.timeEnd(`buildFromDocker.pulling image ${payload.sources.replace("docker://", "")}`);
-    debug(`pulled image ${payload.sources.replace("docker://", "")}`);
+    debug(`pulling image ${payload.sources}`);
+    console.time(`buildFromDocker.pulling image ${payload.sources}`);
+    await follow(await docker.pull(payload.sources, {}, undefined, pullAuth), 
+      logs.send.bind(logs, payload, "pull"));
+    console.timeEnd(`buildFromDocker.pulling image ${payload.sources}`);
+    debug(`pulled image ${payload.sources}`);
     
     let repo = `${payload.gm_registry_host}/${payload.gm_registry_repo}/${payload.app}-${payload.app_uuid}`;
     let tag = `1.${payload.build_number}`;
-    debug(`tagging image ${payload.sources.replace("docker://", "")}`);
-    console.time(`buildFromDocker.tagging image ${payload.sources.replace("docker://", "")} with ${repo}:${tag}`);
-    await (docker.getImage(payload.sources.replace("docker://", ""))).tag({repo, tag});
-    await (docker.getImage(payload.sources.replace("docker://", ""))).tag({repo, tag:"latest"});
-    console.timeEnd(`buildFromDocker.tagging image ${payload.sources.replace("docker://", "")} with ${repo}:${tag}`);
-    debug(`tagged image ${payload.sources.replace("docker://", "")}`);
+    debug(`tagging image ${payload.sources}`);
+    console.time(`buildFromDocker.tagging image ${payload.sources} with ${repo}:${tag}`);
+    await (docker.getImage(payload.sources)).tag({repo, tag});
+    await (docker.getImage(payload.sources)).tag({repo, tag:"latest"});
+    console.timeEnd(`buildFromDocker.tagging image ${payload.sources} with ${repo}:${tag}`);
+    debug(`tagged image ${payload.sources}`);
     debug(`pushing image ${repo}:${tag}`);
 
-    console.time(`buildFromDocker.pushing image ${payload.sources.replace("docker://", "")}`);
+    console.time(`buildFromDocker.pushing image ${payload.sources}`);
     await follow(
       await (docker.getImage(`${repo}:${tag}`)).push({tag}, undefined, payload.gm_registry_auth), 
-      logs.send.bind(null, payload, "push"));
-    console.timeEnd(`buildFromDocker.pushing image ${payload.sources.replace("docker://", "")}`);
+      logs.send.bind(logs, payload, "push"));
+    console.timeEnd(`buildFromDocker.pushing image ${payload.sources}`);
     debug(`pushed image ${repo}:${tag}`);
     debug(`pushing image ${repo}:latest`);
-    console.time(`buildFromDocker.pushing image (latest) ${payload.sources.replace("docker://", "")}`);
+    console.time(`buildFromDocker.pushing image (latest) ${payload.sources}`);
     await follow(
       await (docker.getImage(`${repo}:latest`)).push({tag:"latest"}, undefined, payload.gm_registry_auth), 
-      logs.send.bind(null, payload, "push"));
-    console.timeEnd(`buildFromDocker.pushing image (latest) ${payload.sources.replace("docker://", "")}`);
+      logs.send.bind(logs, payload, "push"));
+    console.timeEnd(`buildFromDocker.pushing image (latest) ${payload.sources}`);
     debug(`pushed image ${repo}:latest`);
     console.time("logs.close");
     await logs.close(payload);

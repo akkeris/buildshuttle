@@ -10,6 +10,8 @@ describe("various sources for builds", function() {
   test.events.on('loaded', (u) => { url = u });
   
   it("test creating a build from docker", async () => {
+    pending = false
+    successful = false
     test.events.removeAllListeners('callback')
     let listener = (body) => {
       expect(body.id).equal(1)
@@ -47,6 +49,60 @@ describe("various sources for builds", function() {
         },
         "build_number":1,
         "build_uuid":"56bce159-87a7-437f-bed3-2da4e44d9eee",
+        "callback":url,
+        "callback_auth":"foobar"
+      })
+    });
+    expect(response).to.equal('{"status":"ok"}')
+    while(pending === false) {
+      await test.wait()
+    }
+    while(successful === false) {
+      await test.wait()
+    }
+    test.events.removeListener('callback', listener)
+  });
+
+  it("test creating a build from docker with pull auth", async () => {
+    pending = false
+    successful = false
+    test.events.removeAllListeners('callback')
+    let listener = (body) => {
+      expect(body.id).equal(1)
+      expect(body.type).equal("buildshuttle")
+      if(body.status === "pending") {
+        pending = true;
+      } else if (body.status === "succeeded") {
+        successful = true;
+      } else {
+        console.log('received unexpected build status:', body.status)
+        expect(false).to.equal(true);
+      }
+    }
+    test.events.on('callback', listener)
+    while(url === null) {
+      await test.wait()
+    }
+    let response = await request(
+    {
+      "method":"post",
+      "headers":{
+        "content-type":"application/json"
+      },
+      "uri":"http://localhost:9000",
+      "body":JSON.stringify({
+        "sources":`docker://${process.env.DOCKER_LOGIN}:${process.env.DOCKER_PASS}@docker.io/akkeris/buildshuttle:latest`,
+        "app":"test4",
+        "space":"test4",
+        "app_uuid":"56bce159-87a7-437f-bed3-2da4e44d9333",
+        "gm_registry_host":process.env.DOCKER_HOST || "docker.io",
+        "gm_registry_repo":process.env.DOCKER_ORG || "akkeris",
+        "gm_registry_auth":{
+          "username":process.env.DOCKER_LOGIN,
+          "password":process.env.DOCKER_PASS
+        },
+        "build_number":1,
+        "build_uuid":"56bce159-87a7-437f-bed3-2da4e44d9333",
         "callback":url,
         "callback_auth":"foobar"
       })

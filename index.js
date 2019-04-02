@@ -62,15 +62,6 @@ async function createBuild(req, res) {
   if (!(/([a-f\d]{8}(-[a-f\d]{4}){3}-[a-f\d]{12}?)/i).test(req.body.build_uuid)) {
     return res.status(400).send({"status":"Bad Request - build uuid is invalid."});
   }
-  if(req.body.kafka_hosts) {
-    // convert the kafka hosts to ip addresses.
-    let org_kafka_hosts = req.body.kafka_hosts;
-    req.body.kafka_hosts = (await Promise.all(req.body.kafka_hosts.split(",").map(async (x) => {
-      let [host, port = 9092] = x.split(":");
-      return `${(await resolve(host)).address}:${port}`;
-    }))).join(",");
-    debug(`mapped ${org_kafka_hosts} to ${req.body.kafka_hosts}`);
-  }
   debug("received request:", JSON.stringify(req.body));
   let Binds = [
     "/var/run/docker.sock:/run/docker.sock"
