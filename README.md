@@ -203,4 +203,4 @@ https://applatix.com/case-docker-docker-kubernetes-part-2/
 1. Create a `m4.xlarge` EC2 instance with the Amazon Linux 2 AMI (we tested on 2018.03)
 2. SSH in and run `sudo yum install docker`
 3. Modify `/etc/sysconfig/docker` and change the `OPTIONS` variable to `OPTIONS="--host tcp://0.0.0.0:2375 --host unix:///var/run/docker.sock --max-concurrent-downloads 20 --max-concurrent-uploads 20 --default-ulimit nofile=1024:4096"`.  This will expose the docker builder without authentication! Do not expose this publically! If you don't know what this means, stop right now as you'll be exposing a major security hole. Ensure the security group exposes port 2375 to the IP's of the buildshuttle.
-4. Run `service docker start`
+4. Run `sudo service docker start`

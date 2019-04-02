@@ -9,6 +9,7 @@ const fs = require("fs");
 const logs = require("./logs.js");
 const debug = require("debug")("buildshuttle-worker");
 const timeoutInMs = process.env.TIMEOUT_IN_MS ? parseInt(process.env.TIMEOUT_IN_MS, 10) : (20 * 60 * 1000); // default is 20 minutes.
+const dns = require("dns");
 
 function calcBuildArgs(buildArgs) {
   if (process.env.EXTRA_BUILD_ARGS) {
@@ -212,6 +213,7 @@ async function buildFromBuffer(payload, buffer) {
 }
 
 async function execute() {
+  debug(`Received dns servers for worker: ${dns.getServers()}`);
   let payload = JSON.parse(Buffer.from(process.env.PAYLOAD, "base64"));
   try {
     let parsedUrl = url.parse(payload.sources);
