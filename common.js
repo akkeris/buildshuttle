@@ -3,6 +3,14 @@ const debug = require("debug")("buildshuttle-worker");
 const aws = require("aws-sdk");
 const fs = require("fs");
 
+function log(...args) {
+  if(process.env.TEST_MODE) {
+    console.log("    -", ...args);
+  } else {
+    console.log(...args);
+  }
+}
+
 async function haveObject(Key) {
   if(process.env.TEST_MODE) {
     let destFile = `/tmp/archives/${Key}`;
@@ -53,23 +61,13 @@ function putObject(Key, Body) {
 }
 
 async function sendStatus(uri, authorization, id, status, building) {
-  console.time(`sending status ${id}`);
   try {
     if(uri) {
       debug(`sending "${status}" status for ${id} to ${uri}`);
       await request({uri, headers:{authorization, "content-type":"application/json"}, method:"post", body:JSON.stringify({id, status, building, "type":"buildshuttle"})});
     }
   } catch (e) {
-    console.error(`Unable to send callback status to ${uri}:${e.message}\n${e.stack}`);
-  }
-  console.timeEnd(`sending status ${id}`);
-}
-
-function log(...args) {
-  if(process.env.TEST_MODE) {
-    console.log("    -", ...args);
-  } else {
-    console.log(...args);
+    log(`Unable to send callback status to ${uri}:${e.message}\n${e.stack}`);
   }
 }
 
