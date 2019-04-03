@@ -1,6 +1,7 @@
+const assert = require("assert");
 const fs = require("fs");
 const common = require("./common.js");
-const debug = require("debug")("buildshuttle-worker");
+const debug = require("debug")("buildshuttle-logging");
 const stream = require("stream");
 
 let kafka = require("kafka-node");
@@ -26,26 +27,11 @@ class Logs extends stream.Writable {
   }
 
   _write(chunk, enc, next) {
-    if(!this._open) {
-      this.open().then(() => {
-        this.send({"stream":chunk.toString()}).then(next).catch((e) => {
-          console.log(`Error sending stream: ${e.message}\n${e.stack}`);
-        });
-      }).catch((e) => {
-        console.log(`Error writing stream: ${e.message}\n${e.stack}`);
-      });
-    }
-    this.send({"stream":chunk.toString()}).then(next).catch((e) => {
+    debug("logs._write called");
+    assert.ok(this._open, 'The stream is not yet open.');
+    this.send(chunk.toString()).then(next).catch((e) => {
       console.log(`Error sending stream: ${e.message}\n${e.stack}`);
     });
-  }
-
-  eventLogMessage(event) {
-    let message = [event.status, event.progress, event.stream].filter((x) => !!x).reduce((a, arg) => `${a} ${arg}`, "").trim();
-    if(message !== "") {
-      message = `${message}\n`;
-    }
-    return message;
   }
 
   open() {
@@ -82,9 +68,10 @@ class Logs extends stream.Writable {
   }
 
   sendLogsToKafka(event) {
+    debug("sending logs to kafka");
     return new Promise((resolve, reject) => {
       if(this.kafkaConnection) {
-        let msgs = this.eventLogMessage(event).trim().split("\n").map((x) => {
+        let msgs = event.trim().split("\n").map((x) => {
           if (process.env.SHOW_BUILD_LOGS) {
             console.log(x);
           }
@@ -98,13 +85,13 @@ class Logs extends stream.Writable {
         this.kafkaConnection.send(msgs, (err) => {
             if(err) {
               console.log(`Unable to send traffic to kafka: ${err.message}\n${err.stack}`);
-              process.exit(1);
+              reject(err);
             }
             resolve();
         });
       } else {
         if (process.env.SHOW_BUILD_LOGS) {
-          this.eventLogMessage(event).trim().split("\n").map((x) => console.log(x));
+          event.trim().split("\n").map((x) => console.log(x.trim()));
         }
         resolve();
       }
@@ -112,13 +99,14 @@ class Logs extends stream.Writable {
   }
 
   async flushLogsToS3() {
-    try { 
+    try {
+      debug("flushing logs to s3");
       if(this.logInterval) {
         clearInterval(this.logInterval);
       }
       this.logInterval = null;
       if(this.logStream) {
-        await common.putObject(`${this.app}-${this.app_uuid}-${this.build_number}.logs`, this.logStream);
+        await common.putObject(`${this.app}-${this.app_uuid}-${this.build_number}.logs`, this.logStream.split("\r\n").join("\n"));
       }
     } catch (e) {
       console.log(`Error, unable to flush logs: ${e.message}\n${e.stack}`);
@@ -127,31 +115,20 @@ class Logs extends stream.Writable {
 
   async sendLogsToS3(event) {
     if(!this.logInterval) {
-      this.logInterval = setTimeout(this.flushLogsToS3.bind(this), 3000);
+      this.logInterval = setTimeout(this.flushLogsToS3.bind(this), 1500);
     }
-    this.logStream += this.eventLogMessage(event);
+    this.logStream += event;
   }
 
-  async close() {
+  async end() {
     debug(`closing and flushing logs for ${this.build_uuid}`);
     await this.flushLogsToS3();
-    debug(`flushed s3 logs for ${this.build_uuid}`);
-    await this.sendLogsToKafka({"stream":"Build finished"});
-    debug(`flushed kafka logs for ${this.build_uuid}`);
+    await this.sendLogsToKafka("Build finished");
   }
 
-  async send(payload, type, event) {
+  async send(event) {
     try {
-      if(event.stream) {
-        event.stream = event.stream.toString().replace(/^[\n]+|[\n]+$/g, "");
-      }
-      if(event.status) {
-        event.status = event.status.toString().replace(/^[\n]+|[\n]+$/g, "");
-      }
-      if(event.progress) {
-        event.progress = event.progress.toString().replace(/^[\n]+|[\n]+$/g, "");
-      }
-      event.type = type;
+      debug("sending logs");
       await this.sendLogsToKafka(event);
       await this.sendLogsToS3(event);
     } catch (e) {

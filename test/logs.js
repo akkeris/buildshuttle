@@ -59,11 +59,11 @@ describe("builds logs", function() {
       let changed = 0;
       let logs = null;
       try {
-        logs = await request({"url":"http://localhost:9000/test-abbce159-87a7-437f-bed3-2da4e44dcfff/1/logs"})
+        logs = await request({"url":"http://localhost:9000/test-abbce159-87a7-437f-bed3-2da4e44dcfff/1/logs"});
       } catch (e) {}
       while(pending === false) {
         try {
-          let l = await request({"url":"http://localhost:9000/test-abbce159-87a7-437f-bed3-2da4e44dcfff/1/logs"})
+          let l = await request({"url":"http://localhost:9000/test-abbce159-87a7-437f-bed3-2da4e44dcfff/1/logs"});
           if (logs !== l) {
             changed++;
           }
@@ -71,10 +71,13 @@ describe("builds logs", function() {
         await test.wait(2000)
       }
       while(successful === false) {
-        let l = await request({"url":"http://localhost:9000/test-abbce159-87a7-437f-bed3-2da4e44dcfff/1/logs"})
-        if (logs !== l) {
-          changed++;
-        }
+        try {
+          let l = await request({"url":"http://localhost:9000/test-abbce159-87a7-437f-bed3-2da4e44dcfff/1/logs"});
+          if (logs !== l) {
+            changed++;
+          }
+        } catch (e) {}
+        
         await test.wait(2000)
       }
       expect(changed).to.not.equal(0);

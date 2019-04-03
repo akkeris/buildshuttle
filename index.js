@@ -13,6 +13,7 @@ const dns = require("dns");
 const utils = require("util");
 const resolve = utils.promisify(dns.lookup);
 const debug = require("debug")("buildshuttle");
+const Logs = require("./logs.js");
 
 async function stopDockerBuild(container) {
   try {
@@ -62,6 +63,8 @@ async function createBuild(req, res) {
   if (!(/([a-f\d]{8}(-[a-f\d]{4}){3}-[a-f\d]{12}?)/i).test(req.body.build_uuid)) {
     return res.status(400).send({"status":"Bad Request - build uuid is invalid."});
   }
+  const logs = new Logs(req.body.kafka_hosts, req.body.app, req.body.app_uuid, req.body.space, req.body.build_uuid, req.body.build_number);
+  await logs.open();
   debug("received request:", JSON.stringify(req.body));
   let Binds = [
     "/var/run/docker.sock:/run/docker.sock"
@@ -90,7 +93,7 @@ async function createBuild(req, res) {
     let timeout = null;
     common.log(`Build starting: ${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`);
     await common.sendStatus(req.body.callback, req.body.callback_auth, req.body.build_number, "pending", false);
-    docker.run(dockerBuildImage, ["node", "worker.js"], process.stdout, env, async (err, data, container) => {
+    docker.run(dockerBuildImage, ["node", "worker.js"], logs, env, async (err, data, container) => {
       try {
         clearInterval(timeout);
         timeout = null;
@@ -113,7 +116,7 @@ async function createBuild(req, res) {
         }
         common.log(`Build finished (code: ${data ? data.StatusCode : "unknown"}): ${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`);
       } catch (e) {
-        console.error(`General error reporting build status: ${e.message}\n${e.stack}`);
+        console.error(`Error during build callback: ${e.message}\n${e.stack}`);
       }
     }).on("start", (container) => {
       res.send({"status":"ok"});

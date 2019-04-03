@@ -6,10 +6,25 @@ const http = require("http");
 const https = require("https");
 const { execSync } = require("child_process");
 const fs = require("fs");
-const Logs = require("./logs.js");
 const debug = require("debug")("buildshuttle-worker");
 const timeoutInMs = process.env.TIMEOUT_IN_MS ? parseInt(process.env.TIMEOUT_IN_MS, 10) : (20 * 60 * 1000); // default is 20 minutes.
 const dns = require("dns");
+
+function printLogs(event) {
+  if(event.stream) {
+    event.stream = event.stream.toString().replace(/^[\n\r]+|[\n\r]+$/g, "");
+  }
+  if(event.status) {
+    event.status = event.status.toString().replace(/^[\n\r]+|[\n\r]+$/g, "");
+  }
+  if(event.progress) {
+    event.progress = event.progress.toString().replace(/^[\n\r]+|[\n\r]+$/g, "");
+  }
+  let message = [event.status, event.progress, event.stream].filter((x) => !!x).reduce((a, arg) => `${a} ${arg}`, "").trim();
+  if(message !== "") {
+    process.stdout.write(`${message}\n`);
+  }
+}
 
 function calcBuildArgs(buildArgs) {
   if (process.env.EXTRA_BUILD_ARGS) {
@@ -40,23 +55,17 @@ function follow(stream, onProgress) {
 
 async function build(payload) {
   debug(`beginning general build task ${payload.build_uuid}`);
-  const logs = new Logs(payload.kafka_hosts, payload.app, payload.app_uuid, payload.space, payload.build_uuid, payload.build_number);
+  
   try {
-
-    await logs.open();
-    debug("logs opened");
-    logs.send(payload, "build", {"stream":`Generating build for ${payload.app}-${payload.space} build uuid ${payload.build_uuid}`});
+    common.log(`Generating build for ${payload.app}-${payload.space} build uuid ${payload.build_uuid}`);
     if(payload.repo) {
-      logs.send(payload, "build", {"stream":`Getting source code for ${payload.repo}/${payload.branch} SHA ${payload.sha}...`});
+      common.log(`Getting source code for ${payload.repo}/${payload.branch} SHA ${payload.sha}...`);
     }
-    console.time(`build.extracting sources ${payload.build_uuid}`);
-    await logs.send(payload, "build", 
-      {"status":execSync("tar zxf /tmp/sources -C /tmp/build || unzip /tmp/sources -d /tmp/build", {cwd:"/tmp", stdio:["pipe", "pipe", "pipe"]})});
+    execSync("tar zxf /tmp/sources -C /tmp/build || unzip /tmp/sources -d /tmp/build", {cwd:"/tmp", stdio:["inherit", "inherit", "inherit"]});
     // Unzip will put a single directory with the original folder name inside of /tmp/build, for example
     // if the original zip was a folder "foobar" then a new folder /tmp/build/foobar will be unzipped, this
     // will remove all the contents backc to /tmp/build.
-    await logs.send(payload, "build",
-      {"status":execSync("if [ `ls -d */ | wc -l` = \"1\" ]; then if [ `ls . | wc -l` = \"1\" ]; then mv */.[!.]* . || true; mv */* . || true; fi fi", {cwd:"/tmp/build", stdio:["pipe", "pipe", "pipe"]})});
+    execSync("if [ `ls -d */ | wc -l` = \"1\" ]; then if [ `ls . | wc -l` = \"1\" ]; then mv */.[!.]* . || true; mv */* . || true; fi fi", {cwd:"/tmp/build", stdio:["inherit", "inherit", "inherit"]});
     debug("extracted sources");
     let newBuildArgs = calcBuildArgs(payload.build_args || {});
     fs.writeFileSync("/tmp/build/Dockerfile", calcDockerFile(newBuildArgs, "/tmp/build/Dockerfile"));
@@ -72,7 +81,6 @@ async function build(payload) {
         "app_uuid":payload.app_uuid,
       },
     };
-    console.timeEnd(`build.extracting sources ${payload.build_uuid}`);
     if(payload.gm_registry_auth) {
       build_options.registryconfig = {};
       build_options.registryconfig[payload.gm_registry_host] = payload.gm_registry_auth;
@@ -81,64 +89,42 @@ async function build(payload) {
         auth.serveraddress = payload.gm_registry_host;
       }
       debug(`attempting to authorize ${auth.serveraddress} with ${auth.username}`);
-      console.time("build.auth");
       try {
         await docker.checkAuth(auth);
       } catch (e) {
         common.log(`Error, unable to authorize ${auth.serveraddress}: ${e.message}\n${e.stack}`);
       }
-      console.timeEnd("build.auth");
       if(!auth.serveraddress.startsWith("https://")) {
-        console.time("build.auth(https)");
+        debug(`attempting to authorize (https) ${auth.serveraddress} with ${auth.username}`);
         auth.serveraddress = `https://${auth.serveraddress}`;
         try {
           await docker.checkAuth(auth);
         } catch (e) {
           common.log(`Error, unable to authorize ${auth.serveraddress}: ${e.message}\n${e.stack}`);
         }
-        console.timeEnd("build.auth(https)");
       }
     }
 
     build_options.nocache = (process.env.TEST_MODE || process.env.NO_CACHE === "true") ? true : false;
     debug("starting build");
-    console.time(`build.start ${payload.build_uuid}`);
     let buildStream = await docker.buildImage({"context":"/tmp/build"}, build_options);
-    console.timeEnd(`build.start ${payload.build_uuid}`);
     debug("started build");
     let sourcePushPromise = common.putObject(payload.build_uuid, fs.createReadStream("/tmp/sources"));
-    console.time(`build.building ${payload.build_uuid}`);
-    let out = await follow(buildStream, logs.send.bind(logs, payload, "build"));
-    console.timeEnd(`build.building ${payload.build_uuid}`);
+    let out = await follow(buildStream, printLogs);
     debug(`pushing image ${repo}:${tag}`);
-    console.time(`build.pushing ${repo}:${tag}`);
-    await follow(await (docker.getImage(`${repo}:${tag}`)).push({tag}, undefined, payload.gm_registry_auth), 
-      logs.send.bind(logs, payload, "push"));
+    await follow(await (docker.getImage(`${repo}:${tag}`)).push({tag}, undefined, payload.gm_registry_auth), printLogs);
     debug(`pushed image ${repo}:${tag}`);
-    console.timeEnd(`build.pushing ${repo}:${tag}`);
-    console.time("logs.close");
-    await logs.close(payload);
-    console.timeEnd("logs.close");
     await sourcePushPromise;
     process.exit(0);
   } catch (e) {
-    console.time("logs.close");
-    await logs.close(payload);
-    console.timeEnd("logs.close");
-    if(e.message) {
-      common.log(`Error during build (docker build process): ${e.message}\n${e.stack}`);
-    } else {
-      common.log(`Error during build (docker build process): ${e}`);
-    }
+    common.log(`Error during build (docker build process): ${e.message}\n${e.stack}`);
     process.exit(127);
   }
 }
 
 async function buildFromDocker(payload) {
   debug("build pulling and pushing existing image");
-  const logs = new Logs(payload.kafka_hosts, payload.app, payload.app_uuid, payload.space, payload.build_uuid, payload.build_number);
   try {
-    await logs.open();
     let parsedUrl = url.parse(payload.sources);
     let pullAuth = {};
     if (parsedUrl.auth) {
@@ -148,55 +134,34 @@ async function buildFromDocker(payload) {
       pullAuth = {"username":payload.docker_login, "password":payload.docker_password};
     }
     payload.sources = parsedUrl.host + parsedUrl.path;
-    
     debug(`pulling image ${payload.sources}`);
-    console.time(`buildFromDocker.pulling image ${payload.sources}`);
-    await follow(await docker.pull(payload.sources, {}, undefined, pullAuth), 
-      logs.send.bind(logs, payload, "pull"));
-    console.timeEnd(`buildFromDocker.pulling image ${payload.sources}`);
+    await follow(await docker.pull(payload.sources, {}, undefined, pullAuth), printLogs);
     debug(`pulled image ${payload.sources}`);
     
     let repo = `${payload.gm_registry_host}/${payload.gm_registry_repo}/${payload.app}-${payload.app_uuid}`;
     let tag = `1.${payload.build_number}`;
     debug(`tagging image ${payload.sources}`);
-    console.time(`buildFromDocker.tagging image ${payload.sources} with ${repo}:${tag}`);
     await (docker.getImage(payload.sources)).tag({repo, tag});
     await (docker.getImage(payload.sources)).tag({repo, tag:"latest"});
-    console.timeEnd(`buildFromDocker.tagging image ${payload.sources} with ${repo}:${tag}`);
     debug(`tagged image ${payload.sources}`);
     debug(`pushing image ${repo}:${tag}`);
-
-    console.time(`buildFromDocker.pushing image ${payload.sources}`);
-    await follow(
-      await (docker.getImage(`${repo}:${tag}`)).push({tag}, undefined, payload.gm_registry_auth), 
-      logs.send.bind(logs, payload, "push"));
-    console.timeEnd(`buildFromDocker.pushing image ${payload.sources}`);
+    await follow(await (docker.getImage(`${repo}:${tag}`)).push({tag}, undefined, payload.gm_registry_auth), printLogs);
     debug(`pushed image ${repo}:${tag}`);
     debug(`pushing image ${repo}:latest`);
-    console.time(`buildFromDocker.pushing image (latest) ${payload.sources}`);
-    await follow(
-      await (docker.getImage(`${repo}:latest`)).push({tag:"latest"}, undefined, payload.gm_registry_auth), 
-      logs.send.bind(logs, payload, "push"));
-    console.timeEnd(`buildFromDocker.pushing image (latest) ${payload.sources}`);
+    await follow(await (docker.getImage(`${repo}:latest`)).push({tag:"latest"}, undefined, payload.gm_registry_auth), printLogs);
     debug(`pushed image ${repo}:latest`);
-    console.time("logs.close");
-    await logs.close(payload);
-    console.timeEnd("logs.close");
     process.exit(0);
   } catch (e) {
-    common.log(`Error during build (from docker): ${e.message}\n${e.stack}`);
-    await logs.close(payload);
-    process.exit(1);
+    common.log(`Error during build (docker build from docker process): ${e.message}\n${e.stack}`);
+    process.exit(127);
   }
 }
 
 async function buildFromStream(payload, stream) {
   debug("downloading sources from stream");
-  console.time(`buildFromStream.downloading sources for ${payload.build_uuid}`);
   let dest = fs.createWriteStream("/tmp/sources");
   dest.on("close", () => {
     debug("downloaded sources from stream");
-    console.timeEnd(`buildFromStream.downloading sources for ${payload.build_uuid}`);
     build(payload);
   });
   dest.on("error", (e) => {
@@ -256,6 +221,9 @@ async function execute() {
     process.exit(127);
   }
 }
+
+process.stdout.setNoDelay(true);
+process.stderr.setNoDelay(true);
 
 debug(`worker started with timeout: ${timeoutInMs/1000/60} seconds`);
 setTimeout(() => {
