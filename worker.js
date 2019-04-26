@@ -111,6 +111,9 @@ async function build(payload) {
     debug("started build");
     let sourcePushPromise = common.putObject(payload.build_uuid, fs.createReadStream("/tmp/sources"));
     let out = await follow(buildStream, printLogs);
+    debug(`tagging ${repo}:latest`);
+    await (docker.getImage(`${repo}:${tag}`)).tag({repo, tag:"latest"});
+    debug(`tagged ${repo}:latest`);
     debug(`pushing image ${repo}:${tag}`);
     await follow(await (docker.getImage(`${repo}:${tag}`)).push({tag}, undefined, payload.gm_registry_auth), printLogs);
     debug(`pushed image ${repo}:${tag}`);
