@@ -204,3 +204,4 @@ https://applatix.com/case-docker-docker-kubernetes-part-2/
 2. SSH in and run `sudo yum install docker`
 3. Modify `/etc/sysconfig/docker` and change the `OPTIONS` variable to `OPTIONS="--host tcp://0.0.0.0:2375 --host unix:///var/run/docker.sock --max-concurrent-downloads 20 --max-concurrent-uploads 20 --default-ulimit nofile=1024:4096"`.  This will expose the docker builder without authentication! Do not expose this publically! If you don't know what this means, stop right now as you'll be exposing a major security hole. Ensure the security group exposes port 2375 to the IP's of the buildshuttle.
 4. Run `sudo service docker start`
+5. Run `sudo crontab -e` and add `0 3 * * * /usr/bin/docker system prune -f -a --filter "label!=keep"`. This will prune unused containers and images from the build server unless they are labeled with keep (label your base images to keep builds speedy).
