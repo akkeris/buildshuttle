@@ -114,6 +114,9 @@ async function build(payload) {
     debug(`pushing image ${repo}:${tag}`);
     await follow(await (docker.getImage(`${repo}:${tag}`)).push({tag}, undefined, payload.gm_registry_auth), printLogs);
     debug(`pushed image ${repo}:${tag}`);
+    debug(`pushing image ${repo}:latest`);
+    await follow(await (docker.getImage(`${repo}:latest`)).push({tag:"latest"}, undefined, payload.gm_registry_auth), printLogs);
+    debug(`pushed image ${repo}:latest`);
     await sourcePushPromise;
     process.exit(0);
   } catch (e) {
