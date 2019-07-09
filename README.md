@@ -19,6 +19,7 @@ The build shuttle is a private API used by the controller-api to build docker im
 * `TIMEOUT_IN_MS` - The timeout for builds, this is in milliseconds, the default is 20 minutes (or 1000 * 60 * 20).
 * `KAFKA_TOPIC` - The topic to stream build logs to. 
 * `SHOW_BUILD_LOGS` - Whether to show the build logs as part of the worker process.
+* `USE_KUBERNETES` - Whether to attempt to use kubernetes to spin up new workers, rather than a docker socket.
 
 ## Starting
 
