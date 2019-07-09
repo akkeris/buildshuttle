@@ -17,6 +17,7 @@ async function haveObject(Key) {
     return fs.existsSync(destFile) ? true : false;
   }
   try {
+    await new Promise((resolve) => setTimeout(resolve, 100));
     await (new aws.S3({accessKeyId:process.env.S3_ACCESS_KEY, secretAccessKey:process.env.S3_SECRET_KEY}))
       .headObject({Bucket:process.env.S3_BUCKET, Key})
       .promise();
@@ -34,6 +35,7 @@ async function getObject(Key) {
   } else {
     debug(`reading s3 object ${Key}`);
   }
+  await new Promise((resolve) => setTimeout(resolve, 100));
   return await (new aws.S3({accessKeyId:process.env.S3_ACCESS_KEY, secretAccessKey:process.env.S3_SECRET_KEY}))
     .getObject({ Bucket:process.env.S3_BUCKET, Key})
     .createReadStream();
@@ -43,6 +45,7 @@ function putObject(Key, Body) {
   if(process.env.TEST_MODE) {
     return new Promise((resolve, reject) => {
       debug(`writing to file in test mode for ${Key}`);
+      try { fs.mkdirSync("/tmp/archives"); } catch (e) { }
       let destFile = `/tmp/archives/${Key}`;
       let o = fs.createWriteStream(destFile);
       if(Body.pipe) {

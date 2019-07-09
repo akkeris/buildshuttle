@@ -115,7 +115,7 @@ class Logs extends stream.Writable {
 
   async sendLogsToS3(event) {
     if(!this.logInterval) {
-      this.logInterval = setTimeout(this.flushLogsToS3.bind(this), 1500);
+      this.logInterval = setTimeout(this.flushLogsToS3.bind(this), 2000);
     }
     this.logStream += event;
   }

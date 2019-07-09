@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@kubernetes/client-node": "^0.10.2",
     "aws-sdk": "^2.422.0",
     "body-parser": "^1.18.3",
     "chai": "^4.2.0",
@@ -23,6 +24,6 @@
     "uuid": "^3.1.0"
   },
   "devDependencies": {
-    "mocha": "^6.0.2"
+    "mocha": "^6.1.4"
   }
 }

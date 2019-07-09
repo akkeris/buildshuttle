@@ -231,7 +231,7 @@ async function execute() {
 process.stdout.setNoDelay(true);
 process.stderr.setNoDelay(true);
 
-debug(`worker started with timeout: ${timeoutInMs/1000/60} seconds`);
+debug(`worker started with timeout: ${timeoutInMs/1000/60} minutes`);
 setTimeout(() => {
   try {
     common.log("Build timed out (failed).");

@@ -9,7 +9,7 @@ describe("builds logs", function() {
   let url = null
   test.events.on('loaded', (u) => { url = u });
 
-  if(process.env.SMOKE_TESTS === "true") {
+  if(process.env.SMOKE_TESTS === "true" && !process.env.USE_KUBERNETES) {
     it("test to ensure logs arrive iteratively", async () => {
       test.events.removeAllListeners('callback')
       let listener = (body) => {
