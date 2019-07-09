@@ -80,13 +80,15 @@ async function runWorkerViaKubernetes(dockerBuildImage, logs, app, app_uuid, bui
     }
     common.log(`Build finished (code: ${res ? res.exitCode : "unknown"}): ${app}-${app_uuid}-${build_number}`);
   } catch (e) {
-    console.log(`Error during worker execution: ${e.message}\n${e.stack}`);
+    console.log(`Error during worker execution: ${e.stack}`);
     common.log(`Build failed: ${app}-${app_uuid}-${build_number}`);
     await common.sendStatus(callback, callback_auth, build_number, "failed", false);
   }
 }
 
-function runWorkerViaDocker(dockerBuildImage, logs, app, app_uuid, build_number, payload, callback, callback_auth) {
+async function runWorkerViaDocker(dockerBuildImage, logs, app, app_uuid, build_number, payload, callback, callback_auth) {
+  // if the container already exists, remove it.
+  await stopDockerBuildByName(`${app}-${app_uuid}-${build_number}`);
   debug("Build worker starting via docker socket.");
   let Binds = [
     "/var/run/docker.sock:/run/docker.sock"
@@ -145,23 +147,17 @@ async function createBuild(req, res) {
   await logs.open();
   debug("received request:", JSON.stringify(req.body));
   try {
-    // if the container already exists, remove it.
-    let containerName = `${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`;
-    await stopDockerBuildByName(containerName);
     common.log(`Build starting: ${req.body.app}-${req.body.app_uuid}-${req.body.build_number}`);
     await common.sendStatus(req.body.callback, req.body.callback_auth, req.body.build_number, "pending", false);
-
     if(process.env.USE_KUBERNETES == "true") {
       runWorkerViaKubernetes(dockerBuildImage, logs, req.body.app, req.body.app_uuid, req.body.build_number, req.body, req.body.callback, req.body.callback_auth)
-        .then(() => {
-          res.send({"status":"ok"});
-        })
         .catch((e) => {
           res.status(500).send({"status":"Internal Server Error"});
           console.error(`Error in kubernetes execution on worker: ${e.message}\n${e.stack}`)
         })
+      res.send({"status":"ok"});
     } else {
-      runWorkerViaDocker(dockerBuildImage, logs, req.body.app, req.body.app_uuid, req.body.build_number, req.body, req.body.callback, req.body.callback_auth)
+      (await runWorkerViaDocker(dockerBuildImage, logs, req.body.app, req.body.app_uuid, req.body.build_number, req.body, req.body.callback, req.body.callback_auth))
         .on("start", (container) => {
           res.send({"status":"ok"});
         });

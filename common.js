@@ -58,7 +58,6 @@ function putObject(Key, Body) {
       o.end();
     });
   }
-  await new Promise((resolve) => setTimeout(resolve, 100));
   return (new aws.S3({accessKeyId:process.env.S3_ACCESS_KEY, secretAccessKey:process.env.S3_SECRET_KEY}))
     .putObject({ Bucket:process.env.S3_BUCKET, Key, ACL:"authenticated-read", ContentType:"application/octet-stream", Body})
     .promise();
