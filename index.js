@@ -39,12 +39,16 @@ async function removeDockerBuild(container) {
   }
 }
 
-async function kubernetesLogsByPod(app, build_number) {
-  return await kube.logs("buildshuttle-worker-" + app + "-" + build_number, "akkeris-system");
+function calcPodNameFromApp(app_name, app_uuid, build_number) {
+  return "buildshuttle-worker-" + app_name + "-" + app_uuid.split('-')[0] + "-" + build_number
 }
-async function stopKubernetesBuildByPod(app, build_number) {
-  common.log("Removing kubernetes pod,", "buildshuttle-worker-" + app + "-" + build_number, "in space akkeris-system")
-  await kube.stop("buildshuttle-worker-" + app + "-" + build_number, "akkeris-system");
+
+async function kubernetesLogsByPod(app_name, app_uuid, build_number) {
+  return await kube.logs(calcPodNameFromApp(app_name, app_uuid, build_number), "akkeris-system");
+}
+async function stopKubernetesBuildByPod(app_name, app_uuid, build_number) {
+  common.log("Removing kubernetes pod,", calcPodNameFromApp(app_name, app_uuid, build_number) + " in space akkeris-system")
+  await kube.stop(calcPodNameFromApp(app_name, app_uuid, build_number), "akkeris-system");
 }
 
 async function stopDockerBuildByName(containerName) {
@@ -64,31 +68,31 @@ async function stopDockerBuildByName(containerName) {
   }));
 }
 
-async function runWorkerViaKubernetes(dockerBuildImage, logs, app, app_uuid, build_number, payload, callback, callback_auth) {
+async function runWorkerViaKubernetes(dockerBuildImage, logs, app_name, app_uuid, build_number, payload, callback, callback_auth) {
   debug("Build worker starting via kubernetes service account.");
 
   let env = process.env;
   env["PAYLOAD"] = Buffer.from(typeof payload === "string" ? payload : JSON.stringify(payload), "utf8").toString("base64");
   try {
-    let res = await kube.run("buildshuttle-worker-" + app + "-" + build_number, "akkeris-system", "akkeris", dockerBuildImage, ["node", "worker.js"], env, logs)
+    let res = await kube.run(calcPodNameFromApp(app_name, app_uuid, build_number), "akkeris-system", "akkeris", dockerBuildImage, ["node", "worker.js"], env, logs)
     if(res.exitCode === 0) {
-      common.log(`Build succeeded: ${app}-${app_uuid}-${build_number}`);
+      common.log(`Build succeeded: ${app_name}-${app_uuid}-${build_number}`);
       await common.sendStatus(callback, callback_auth, build_number, "succeeded", false);
     } else {
-      common.log(`Build failed: ${app}-${app_uuid}-${build_number} with exit code ${res.exitCode}`);
+      common.log(`Build failed: ${app_name}-${app_uuid}-${build_number} with exit code ${res.exitCode}`);
       await common.sendStatus(callback, callback_auth, build_number, "failed", false);
     }
-    common.log(`Build finished (code: ${res ? res.exitCode : "unknown"}): ${app}-${app_uuid}-${build_number}`);
+    common.log(`Build finished (code: ${res ? res.exitCode : "unknown"}): ${app_name}-${app_uuid}-${build_number}`);
   } catch (e) {
     console.log(`Error during worker execution: ${e.stack}`);
-    common.log(`Build failed: ${app}-${app_uuid}-${build_number}`);
+    common.log(`Build failed: ${app_name}-${app_uuid}-${build_number}`);
     await common.sendStatus(callback, callback_auth, build_number, "failed", false);
   }
 }
 
-async function runWorkerViaDocker(dockerBuildImage, logs, app, app_uuid, build_number, payload, callback, callback_auth) {
+async function runWorkerViaDocker(dockerBuildImage, logs, app_name, app_uuid, build_number, payload, callback, callback_auth) {
   // if the container already exists, remove it.
-  await stopDockerBuildByName(`${app}-${app_uuid}-${build_number}`);
+  await stopDockerBuildByName(`${app_name}-${app_uuid}-${build_number}`);
   debug("Build worker starting via docker socket.");
   let Binds = [
     "/var/run/docker.sock:/run/docker.sock"
@@ -100,7 +104,7 @@ async function runWorkerViaDocker(dockerBuildImage, logs, app, app_uuid, build_n
   let cenv = Object.keys(process.env).map((x) => `${x}=${process.env[x]}`)
     .concat([`PAYLOAD=${Buffer.from(typeof payload === "string" ? payload : JSON.stringify(payload), "utf8").toString("base64")}`]);
   let env = {
-    name:`${app}-${app_uuid}-${build_number}`,
+    name:`${app_name}-${app_uuid}-${build_number}`,
     Env:cenv,
     HostConfig:{
       Binds,
@@ -205,7 +209,8 @@ async function stopBuild(req, res) {
   try {
     res.send({"status":"ok"});
     if(process.env.USE_KUBERNETES == "true") {
-      await stopKubernetesBuildByPod(req.params.app_id.split('-')[0], req.params.number); // TODO: stop this insanity with app, app uuid, build number..
+      let awkwardAppAndUUIDName = req.params.app_id.split('-')
+      await stopKubernetesBuildByPod(awkwardAppAndUUIDName[0], awkwardAppAndUUIDName.slice(1).join("-"), req.params.number); // TODO: stop this insanity with app, app uuid, build number..
     } else {
       await stopDockerBuildByName(`${req.params.app_id}-${req.params.number}`);
     }
@@ -220,7 +225,8 @@ async function getBuildLogs(req, res) {
     // TODO: validate this input.
     debug(`fetching ${req.params.app_id}-${req.params.number}.logs`);
     if(process.env.TEST_MODE == "true" && process.env.USE_KUBERNETES == "true") {
-      let logline = await kubernetesLogsByPod(req.params.app_id.split('-')[0], req.params.number);
+      let awkwardAppAndUUIDName = req.params.app_id.split('-')
+      let logline = await kubernetesLogsByPod(awkwardAppAndUUIDName[0], awkwardAppAndUUIDName.slice(1).join("-"), req.params.number);
       res.status(200).send(logline || "")
       return
     }
@@ -247,4 +253,7 @@ app.delete("/:build", (req, res) => res.status(200).send({"status":"ok"}));
 app.delete("/:app_id/:number", stopBuild);
 app.get("/:app_id/:number/logs", getBuildLogs);
 
+if (process.env.USE_KUBERNETES == "true") {
+  kube.init()
+}
 app.listen(process.env.PORT || 9000);

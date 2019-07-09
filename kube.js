@@ -1,10 +1,9 @@
 const k8s = require('@kubernetes/client-node');
-const kc = new k8s.KubeConfig();
 const utils = require('util');
-kc.loadFromDefault();
 
-const k8sApi = kc.makeApiClient(k8s.CoreV1Api);
-const k8sLogs = new k8s.Log(kc);
+let kc = null; 
+let k8sApi = null; 
+let k8sLogs = null; 
 const interval = 100; /* The interval between requesting logs, and checking for if a pod is created/dead */
 const maxIteration = 300; /* The maximum iterations seperated by interval(ms) to check for if a  pod is created/dead */
 
@@ -20,6 +19,13 @@ function exitCodeFromPod(podInfo) {
 	} else {
 		return 0
 	}
+}
+
+function init() {
+	kc = new k8s.KubeConfig();
+	kc.loadFromDefault();
+	k8sApi = kc.makeApiClient(k8s.CoreV1Api);
+	k8sLogs = new k8s.Log(kc);
 }
 
 async function pipeLogs(logs, k8s, namespace, pod, container, stream, options, counter) {
@@ -55,6 +61,8 @@ async function pipeLogs(logs, k8s, namespace, pod, container, stream, options, c
 		}, options)
 	})
 }
+
+let testModeLogs = {}
 
 async function run(podName, namespace, serviceAccountName, image, command, env, stream) {
 	stream = stream || process.stdout
@@ -104,6 +112,14 @@ async function run(podName, namespace, serviceAccountName, image, command, env, 
 			throw e
 		}
 	} finally {
+		if(process.env.TEST_MODE) {
+			try {
+				let logs = await k8sApi.readNamespacedPodLog(podName, namespace, podName, false);
+				testModeLogs[podName+namespace] = logs.response.body
+			} catch (e) {
+				// do nothing
+			}
+		}
 		await k8sApi.deleteNamespacedPod(podName, namespace, false, null, false, 30)	
 	}
 }
@@ -122,7 +138,10 @@ async function stop(podName, namespace) {
 
 async function logs(podName, namespace) {
 	try {
-		return await k8sApi.readNamespacedPodLog(podName, namespace, podName, false)
+		if(testModeLogs[podName+namespace]) {
+			return testModeLogs[podName+namespace];
+		}
+		return JSON.parse(await k8sApi.readNamespacedPodLog(podName, namespace, podName, false)).response.body
 	} catch (e) {
 		if(e.body && e.body.code && (e.body.code === 404 || e.body.code === 400)) {
 			return ""
@@ -132,7 +151,7 @@ async function logs(podName, namespace) {
 	}
 }
 
-module.exports = {run, stop, logs}
+module.exports = {run, stop, logs, init}
 
 // Location notes for kubernetes interfaces.
 // api.js:3120: V1Container class
