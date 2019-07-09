@@ -104,9 +104,10 @@ async function runWorkerViaDocker(dockerBuildImage, logs, app_name, app_uuid, bu
   let cenv = Object.keys(process.env).map((x) => `${x}=${process.env[x]}`)
     .concat([`PAYLOAD=${Buffer.from(typeof payload === "string" ? payload : JSON.stringify(payload), "utf8").toString("base64")}`]);
   let env = {
-    name:`${app_name}-${app_uuid}-${build_number}`,
-    Env:cenv,
-    HostConfig:{
+    name: `${app_name}-${app_uuid}-${build_number}`,
+    Env: cenv,
+    StopTimeout: 60,
+    HostConfig: {
       Binds,
       Privileged:true,
       AutoRemove:true,
@@ -126,13 +127,13 @@ async function runWorkerViaDocker(dockerBuildImage, logs, app_name, app_uuid, bu
         }
       }
       if (data && data.StatusCode !== 0) {
-        common.log(`Build failed: ${app}-${app_uuid}-${build_number}`);
+        common.log(`Build failed: ${app_name}-${app_uuid}-${build_number}`);
         await common.sendStatus(callback, callback_auth, build_number, "failed", false);
       } else {
-        common.log(`Build succeeded: ${app}-${app_uuid}-${build_number}`);
+        common.log(`Build succeeded: ${app_name}-${app_uuid}-${build_number}`);
         await common.sendStatus(callback, callback_auth, build_number, "succeeded", false);
       }
-      common.log(`Build finished (code: ${data ? data.StatusCode : "unknown"}): ${app}-${app_uuid}-${build_number}`);
+      common.log(`Build finished (code: ${data ? data.StatusCode : "unknown"}): ${app_name}-${app_uuid}-${build_number}`);
     } catch (e) {
       console.error(`Error during build callback: ${e.message}\n${e.stack}`);
     }
