@@ -14,7 +14,7 @@ function exitCodeFromPod(podInfo) {
 		podInfo.status.containerStatuses[0] &&
 		podInfo.status.containerStatuses[0].state &&
 		podInfo.status.containerStatuses[0].state.terminated &&
-		podInfo.status.containerStatuses[0].state.terminated.exitCode) 
+		(podInfo.status.containerStatuses[0].state.terminated.exitCode || podInfo.status.containerStatuses[0].state.terminated.exitCode === 0))
 	{
 		return podInfo.status.containerStatuses[0].state.terminated.exitCode
 	} else {
