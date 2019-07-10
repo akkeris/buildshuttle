@@ -233,7 +233,7 @@ async function getBuildLogs(req, res) {
     }
     let stream = await common.getObject(`${req.params.app_id}-${req.params.number}.logs`);
     stream.on("error", (err) => {
-      if(err.message && err.message.indexOf("no such file") === -1) {
+      if(err.message && err.message.indexOf("no such file") === -1 && err.message.indexOf("specified key does not exist") === -1) {
         common.log("Error fetching build logs", err);
       }
       res.status(404).send({"status":"Not Found"});

@@ -111,14 +111,20 @@ async function build(payload) {
     debug("started build");
     let sourcePushPromise = common.putObject(payload.build_uuid, fs.createReadStream("/tmp/sources"));
     let out = await follow(buildStream, printLogs);
+    debug(`obtaining image ${repo}:${tag}`)
+    let image = docker.getImage(`${repo}:${tag}`);
     debug(`tagging ${repo}:latest`);
-    await (docker.getImage(`${repo}:${tag}`)).tag({repo, tag:"latest"});
+    await image.tag({repo, tag:"latest"});
     debug(`tagged ${repo}:latest`);
     debug(`pushing image ${repo}:${tag}`);
-    await follow(await (docker.getImage(`${repo}:${tag}`)).push({tag}, undefined, payload.gm_registry_auth), printLogs);
+    let pushRequest = await image.push({tag}, undefined, payload.gm_registry_auth);
+    debug(`streaming push for image ${repo}:${tag}`);
+    await follow(pushRequest, printLogs);
     debug(`pushed image ${repo}:${tag}`);
     debug(`pushing image ${repo}:latest`);
-    await follow(await (docker.getImage(`${repo}:latest`)).push({tag:"latest"}, undefined, payload.gm_registry_auth), printLogs);
+    let pushRequestLatest = await image.push({tag:"latest"}, undefined, payload.gm_registry_auth);
+    debug(`streaming push for image ${repo}:latest`);
+    await follow(pushRequestLatest, printLogs);
     debug(`pushed image ${repo}:latest`);
     await sourcePushPromise;
     process.exit(0);

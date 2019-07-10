@@ -1,5 +1,6 @@
 const k8s = require('@kubernetes/client-node');
 const utils = require('util');
+const debug = require("debug")("buildshuttle");
 
 let kc = null; 
 let k8sApi = null; 
@@ -13,10 +14,11 @@ function exitCodeFromPod(podInfo) {
 		podInfo.status.containerStatuses[0] &&
 		podInfo.status.containerStatuses[0].state &&
 		podInfo.status.containerStatuses[0].state.terminated &&
-		podInfo.status.containerStatuses[0].state.terminated.exitCode) 
+		(podInfo.status.containerStatuses[0].state.terminated.exitCode || podInfo.status.containerStatuses[0].state.terminated.exitCode === 0))
 	{
 		return podInfo.status.containerStatuses[0].state.terminated.exitCode
 	} else {
+		debug("Unable to determine worker container status code, assuming successful. " + JSON.stringify(podInfo))
 		return 0
 	}
 }
@@ -28,37 +30,51 @@ function init() {
 	k8sLogs = new k8s.Log(kc);
 }
 
-async function pipeLogs(logs, k8s, namespace, pod, container, stream, options, counter) {
-	return new Promise((resolve, reject) => {
-		counter = counter || 1;
-		options = options || {};
-		options.follow = true;
-		options.timestamps = false;
-		if (counter >= maxIteration) {
-			return reject(new Error('Error timing out waiting for pod to come alive.'));
-		}
-		logs.log(namespace, pod, container, stream, async (res) => {
-			try {
-				if(typeof res === "string") {
-					res = JSON.parse(res)
+function pipeLogs(logs, k8s, namespace, pod, container, stream, options) {
+	return new Promise(async (resolve, reject) => {
+		// Wait for pod to begin.
+		loop:
+		for(let i=0; i < maxIteration; i++) {
+			await new Promise((r) => setTimeout(r, interval));
+			let podInfo = await k8s.readNamespacedPod(pod, namespace, true);
+			if(podInfo.body && podInfo.body.status && podInfo.body.status.phase) {
+				debug("Waiting for build worker to start. Received status: " + JSON.stringify(podInfo.body.status))
+				if(podInfo.body.status.phase !== "Pending" && podInfo.body.status.phase !== "Unknown") {
+					break loop;
 				}
-				if(res && res.kind === "Status" && res.status === "Failure" && res.message.includes("ContainerCreating")) {
+			}
+			if(i === (maxIteration - 1)) {
+				return reject(new Error("The buildshuttle worker failed to start on a kubernetes pod."))
+			}
+		}
+		debug(`Streaming build logs from pod ${pod} container ${container} in ${namespace}.`)
+		logs.log(namespace, pod, container, stream, async (res) => {
+			debug("Received response for logging request from kubernetes: " + JSON.stringify(res));
+			try {
+				if(res !== null) {
+					return reject(res); // For one reason or another getting logs failed. Either a network error
+								 		// occured or the response is a failed http status code (e.g != 200)
+				}
+				// The stream was successful, no message is a good message.
+				for(let i=0; i < maxIteration; i++) {
 					await new Promise((r) => setTimeout(r, interval));
-					return resolve(await pipeLogs(logs, k8s, namespace, pod, container, stream, options, counter++))
-				} else {
-					for(let i=0; i < maxIteration; i++) {
-						await new Promise((r) => setTimeout(r, interval));
-						let podInfo = await k8s.readNamespacedPod(pod, namespace, true);
-						if(podInfo.body && podInfo.body.status && podInfo.body.status.phase && podInfo.body.status.phase !== "Running") {
+					let podInfo = await k8s.readNamespacedPod(pod, namespace, true);
+					if(podInfo.body && podInfo.body.status && podInfo.body.status.phase) {
+						debug("Waiting for build worker to stop. Received status: " + JSON.stringify(podInfo.body.status))
+						if(podInfo.body.status.phase === "Succeeded") {
 							return resolve({"pod":podInfo.body, exitCode:exitCodeFromPod(podInfo.body)});
+						} else if (podInfo.body.status.phase === "Failed") {
+							return resolve({"pod":podInfo.body, exitCode:1});
+						} else if (podInfo.body.status.phase === "Unknown") {
+							return reject(new Error("The status of the buildshuttle pod could not be obtained."))
 						}
 					}
-					return reject(new Error('Error timing out waiting for pod to stop.'));
 				}
+				return reject(new Error('Error timing out waiting for pod to stop.'));
 			} catch (e) {
 				return reject(e)
 			}
-		}, options)
+		}, options || {})
 	})
 }
 
@@ -104,7 +120,7 @@ async function run(podName, namespace, serviceAccountName, image, command, env, 
 
 	try {
 		await k8sApi.createNamespacedPod(namespace, pod, true, true)
-		return await pipeLogs(k8sLogs, k8sApi, namespace, podName, podName, stream, {})
+		return await pipeLogs(k8sLogs, k8sApi, namespace, podName, podName, stream, {"follow":true, "timestamps":false})
 	} catch (e) {
 		if(e.response && e.response.body) {
 			throw new Error("Kubernetes failed to create or listen to pod: " + e.response.body.message + " " + e.response.body.code)
