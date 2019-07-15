@@ -84,7 +84,7 @@ async function runWorkerViaKubernetes(dockerBuildImage, logs, app_name, app_uuid
     }
     common.log(`Build finished (code: ${res ? res.exitCode : "unknown"}): ${app_name}-${app_uuid}-${build_number}`);
   } catch (e) {
-    console.log(`Error during worker execution: ${e.stack}`);
+    console.log(`Error during worker execution: ${JSON.stringify(e)}`);
     common.log(`Build failed: ${app_name}-${app_uuid}-${build_number}`);
     await common.sendStatus(callback, callback_auth, build_number, "failed", false);
   }

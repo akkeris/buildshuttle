@@ -10,11 +10,17 @@ const maxIteration = 300; /* The maximum iterations seperated by interval(ms) to
 
 
 function exitCodeFromPod(podInfo) {
-	if( podInfo.status.containerStatuses && 
+	if( 
+		podInfo &&
+		podInfo.status &&
+		podInfo.status.containerStatuses && 
 		podInfo.status.containerStatuses[0] &&
 		podInfo.status.containerStatuses[0].state &&
 		podInfo.status.containerStatuses[0].state.terminated &&
-		(podInfo.status.containerStatuses[0].state.terminated.exitCode || podInfo.status.containerStatuses[0].state.terminated.exitCode === 0))
+		(
+			podInfo.status.containerStatuses[0].state.terminated.exitCode || 
+			podInfo.status.containerStatuses[0].state.terminated.exitCode === 0
+		))
 	{
 		return podInfo.status.containerStatuses[0].state.terminated.exitCode
 	} else {
@@ -52,8 +58,9 @@ function pipeLogs(logs, k8s, namespace, pod, container, stream, options) {
 			debug("Received response for logging request from kubernetes: " + JSON.stringify(res));
 			try {
 				if(res !== null) {
-					return reject(res); // For one reason or another getting logs failed. Either a network error
-								 		// occured or the response is a failed http status code (e.g != 200)
+					// For one reason or another getting logs failed. Either a network error
+					// occured or the response is a failed http status code (e.g != 200)
+					return reject(res);
 				}
 				// The stream was successful, no message is a good message.
 				for(let i=0; i < maxIteration; i++) {
@@ -136,7 +143,11 @@ async function run(podName, namespace, serviceAccountName, image, command, env, 
 				// do nothing
 			}
 		}
-		await k8sApi.deleteNamespacedPod(podName, namespace, false, null, false, 30)	
+		try {
+			await k8sApi.deleteNamespacedPod(podName, namespace, undefined, null, undefined, 30)
+		} catch (e) {
+			console.error(`Unable to remove buildshuttle worker pod: ${JSON.stringify(e)}`)
+		}
 	}
 }
 
