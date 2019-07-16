@@ -6,7 +6,7 @@ let kc = null;
 let k8sApi = null; 
 let k8sLogs = null; 
 const interval = 100; /* The interval between requesting logs, and checking for if a pod is created/dead */
-const maxIteration = 300; /* The maximum iterations seperated by interval(ms) to check for if a  pod is created/dead */
+const maxIteration = 600; /* The maximum iterations seperated by interval(ms) to check for if a  pod is created/dead */
 const timeoutInMs = process.env.TIMEOUT_IN_MS ? parseInt(process.env.TIMEOUT_IN_MS, 10) : (20 * 60 * 1000); // default is 20 minutes.
 
 function exitCodeFromPod(podInfo) {
