@@ -7,7 +7,7 @@ let k8sApi = null;
 let k8sLogs = null; 
 const interval = 100; /* The interval between requesting logs, and checking for if a pod is created/dead */
 const maxIteration = 300; /* The maximum iterations seperated by interval(ms) to check for if a  pod is created/dead */
-
+const timeoutInMs = process.env.TIMEOUT_IN_MS ? parseInt(process.env.TIMEOUT_IN_MS, 10) : (20 * 60 * 1000); // default is 20 minutes.
 
 function exitCodeFromPod(podInfo) {
 	if( 
@@ -97,7 +97,7 @@ async function run(podName, namespace, serviceAccountName, image, command, env, 
 	pod.metadata.name = podName
 	pod.spec = new k8s.V1PodSpec()
 	pod.spec.restartPolicy = "Never"
-	pod.spec.activeDeadlineSeconds = 20 * 60 // timeout 
+	pod.spec.activeDeadlineSeconds = Math.round(timeoutInMs / 1000) // timeout 
 	pod.spec.affinity = new k8s.V1Affinity()
 	pod.spec.affinity.nodeAffinity = new k8s.V1NodeAffinity()
 	pod.spec.affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution = [new k8s.V1PreferredSchedulingTerm()]
@@ -107,8 +107,6 @@ async function run(podName, namespace, serviceAccountName, image, command, env, 
 	pod.spec.affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].preference.matchExpressions[0].key = "akkeris.io/node-role"
 	pod.spec.affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].preference.matchExpressions[0].operator = "In"
 	pod.spec.affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].preference.matchExpressions[0].values = ["build"]
-	pod.spec.serviceAccount = serviceAccountName
-	pod.spec.serviceAccountName = serviceAccountName
 	pod.spec.containers = [new k8s.V1Container()]
 	pod.spec.containers[0].command = command
 	pod.spec.containers[0].name = podName
@@ -123,7 +121,6 @@ async function run(podName, namespace, serviceAccountName, image, command, env, 
 	pod.spec.containers[0].resources.limits = {"memory":"128Mi", "cpu":"500m"}
 	pod.spec.containers[0].resources.requests = {"memory":"128Mi", "cpu":"500m"}
 	pod.spec.containers[0].image = image
-	pod.spec.containers[0].imagePullPolicy = "Always"
 
 	try {
 		await k8sApi.createNamespacedPod(namespace, pod, true, true)
