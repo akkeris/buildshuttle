@@ -118,7 +118,7 @@ async function run(podName, namespace, serviceAccountName, image, command, env, 
 		pod.spec.containers[0].env.push(envVar)
 	}
 	pod.spec.containers[0].resources = new k8s.V1ResourceRequirements()
-	pod.spec.containers[0].resources.limits = {"memory":"128Mi", "cpu":"500m"}
+	pod.spec.containers[0].resources.limits = {"memory":"256Mi", "cpu":"500m"}
 	pod.spec.containers[0].resources.requests = {"memory":"128Mi", "cpu":"500m"}
 	pod.spec.containers[0].image = image
 
