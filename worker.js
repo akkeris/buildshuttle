@@ -129,7 +129,7 @@ async function build(payload) {
     await sourcePushPromise;
     process.exit(0);
   } catch (e) {
-    common.log(`Error during build (docker build process): ${e.message}\n${e.stack}`);
+    common.log(`Error during build (docker build process): ${e.message}\n${e.stack}\n${JSON.stringify(e)}`);
     process.exit(127);
   }
 }
@@ -164,7 +164,7 @@ async function buildFromDocker(payload) {
     debug(`pushed image ${repo}:latest`);
     process.exit(0);
   } catch (e) {
-    common.log(`Error during build (docker build from docker process): ${e.message}\n${e.stack}`);
+    common.log(`Error during build (docker build from docker process): ${e.message}\n${e.stack}\n${JSON.stringify(e)}`);
     process.exit(127);
   }
 }
@@ -177,12 +177,12 @@ async function buildFromStream(payload, stream) {
     build(payload);
   });
   dest.on("error", (e) => {
-    common.log(`Error during build (attempting to stream to sources): ${e.message}\n${e.stack}`);
+    common.log(`Error during build (attempting to stream to sources): ${e.message}\n${e.stack}\n${JSON.stringify(e)}`);
     process.exit(127);
   });
   stream.pipe(dest);
   stream.on("error", (e) => {
-    common.log(`Error during build (attempting to stream from http): ${e.message}\n${e.stack}`);
+    common.log(`Error during build (attempting to stream from http): ${e.message}\n${e.stack}\n${JSON.stringify(e)}`);
     process.exit(127);
   });
 }
@@ -224,12 +224,12 @@ async function execute() {
           process.exit(127);
         }
       }).on("error", (e) => {
-        common.log(`Error during build (fetching streams): ${e.message}\n${e.stack}`);
+        common.log(`Error during build (fetching streams): ${e.message}\n${e.stack}\n${JSON.stringify(e)}`);
         process.exit(127);
       });
     }
   } catch (e) {
-    common.log(`Error during build: ${e.message}\n${e.stack}`);
+    common.log(`Error during build: ${e.message}\n${e.stack}\n${JSON.stringify(e)}`);
     process.exit(127);
   }
 }
