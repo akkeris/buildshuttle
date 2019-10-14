@@ -205,8 +205,8 @@ async function execute() {
       while ( data[0] === "/" ||  data[0] === "," ) {
         data = data.substring(1);
       }
-      if ( parsedURL.host === "base64" ) {
-        data = Buffer.from(data, "base64");
+      if ( data.startsWith('base64,') ) {
+        data = Buffer.from(data.substring(7), "base64");
       }
       buildFromBuffer(payload, data);
     } else if ( parsedURL.protocol.startsWith("http")) {
