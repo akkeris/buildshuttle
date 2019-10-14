@@ -41,8 +41,8 @@ describe("creating builds", function() {
         "app":"test",
         "space":"test",
         "app_uuid":"56bce159-87a7-437f-bed3-2da4e44d9cf3",
-        "gm_registry_host":"docker.io",
-        "gm_registry_repo":"akkeris",
+        "gm_registry_host":process.env.DOCKER_HOST || "docker.io",
+        "gm_registry_repo":process.env.DOCKER_ORG || "akkeris",
         "gm_registry_auth":{
           "username":process.env.DOCKER_LOGIN,
           "password":process.env.DOCKER_PASS
