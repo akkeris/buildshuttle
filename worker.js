@@ -137,15 +137,15 @@ async function build(payload) {
 async function buildFromDocker(payload) {
   debug("build pulling and pushing existing image");
   try {
-    let parsedUrl = url.parse(payload.sources);
+    const parsedURL = new url.URL(payload.sources);
     let pullAuth = {};
-    if (parsedUrl.auth) {
-      pullAuth = {"username":parsedUrl.auth.split(":")[0], "password":parsedUrl.auth.split(":")[1]};
+    if (parsedURL.username && parsedURL.password) {
+      pullAuth = {"username": parsedURL.username, "password": parsedURL.password};
     }
     if (payload.docker_login) {
       pullAuth = {"username":payload.docker_login, "password":payload.docker_password};
     }
-    payload.sources = parsedUrl.host + parsedUrl.path;
+    payload.sources = parsedURL.host + parsedURL.pathname;
     debug(`pulling image ${payload.sources}`);
     await follow(await docker.pull(payload.sources, {}, undefined, pullAuth), printLogs);
     debug(`pulled image ${payload.sources}`);
@@ -197,20 +197,20 @@ async function execute() {
   debug(`Received dns servers for worker: ${dns.getServers()}`);
   let payload = JSON.parse(Buffer.from(process.env.PAYLOAD, "base64"));
   try {
-    let parsedUrl = url.parse(payload.sources);
-    if ( parsedUrl.protocol.toLowerCase() === "docker:" ) {
+    const parsedURL = new url.URL(payload.sources);
+    if ( parsedURL.protocol.toLowerCase() === "docker:" ) {
       buildFromDocker(payload);
-    } else if ( parsedUrl.protocol === "data:" ) {
-      let data = parsedUrl.pathname;
+    } else if ( parsedURL.protocol === "data:" ) {
+      let data = parsedURL.pathname;
       while ( data[0] === "/" ||  data[0] === "," ) {
         data = data.substring(1);
       }
-      if ( parsedUrl.host === "base64" ) {
+      if ( parsedURL.host === "base64" ) {
         data = Buffer.from(data, "base64");
       }
       buildFromBuffer(payload, data);
-    } else if ( parsedUrl.protocol.startsWith("http")) {
-      let connector = (parsedUrl.protocol === "https:" ? https : http);
+    } else if ( parsedURL.protocol.startsWith("http")) {
+      let connector = (parsedURL.protocol === "https:" ? https : http);
       connector.get(payload.sources, (res) => {
         if((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
           return connector.get(res.headers.location, buildFromStream.bind(null, payload));
