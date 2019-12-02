@@ -93,6 +93,9 @@ async function run(podName, namespace, serviceAccountName, image, command, env, 
 	pod.apiVersion = "v1"
 	pod.kind = "Pod"
 	pod.metadata = new k8s.V1ObjectMeta()
+	pod.metadata.labels = {
+		"name": "buildshuttle-worker"
+	}
 	pod.metadata.namespace = namespace
 	pod.metadata.name = podName
 	pod.spec = new k8s.V1PodSpec()
