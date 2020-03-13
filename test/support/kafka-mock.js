@@ -17,7 +17,9 @@ class Producer {
   }
 }
 
+function KafkaClient() {}
+
 module.exports = {
-  KafkaClient() {},
+  KafkaClient,
   Producer,
 };
