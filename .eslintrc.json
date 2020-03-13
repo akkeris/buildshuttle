@@ -6,9 +6,6 @@
     "mocha": true
   },
   "extends": "airbnb-base",
-  "plugins": [
-    "mocha"
-  ],
   "rules": {
     "no-plusplus": "off",
     "no-underscore-dangle": "off",
