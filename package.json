@@ -15,7 +15,7 @@
     "body-parser": "^1.18.3",
     "chai": "^4.2.0",
     "debug": "^4.1.1",
-    "dockerode": "^2.5.8",
+    "dockerode": "^3.2.0",
     "express": "^4.16.4",
     "kafka-node": "^4.0.2",
     "ngrok": "^3.2.5",
