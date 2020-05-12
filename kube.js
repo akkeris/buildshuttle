@@ -57,7 +57,6 @@ function pipeLogs(kubeLogs, kube, namespace, pod, container, stream, options) {
       }
     }
     debug(`Streaming build logs from pod ${pod} container ${container} in ${namespace}.`);
-    const podInfo = await kube.readNamespacedPod(pod, namespace, true);
     const req = await kubeLogs.log(namespace, pod, container, stream, () => debug(`done called.`), options || {});
     for (let i = 0; i < (20 * 60 * 10); i++) {
       await new Promise((r) => setTimeout(r, interval));
