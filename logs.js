@@ -27,10 +27,10 @@ class Logs extends stream.Writable {
 
   _write(chunk, enc, next) {
     debug('logs._write called');
-    assert.ok(this._open, 'The stream is not yet open.');
-    this.send(chunk.toString()).then(next).catch((e) => {
-      console.log(`Error sending stream: ${e.message}\n${e.stack}`);
-    });
+    if(!this._open) {
+      debug('logs_write called before it was opened.');
+    }
+    this.send(chunk.toString()).then(next).catch(next);
   }
 
   open() {
@@ -90,8 +90,9 @@ class Logs extends stream.Writable {
           if (err) {
             console.log(`Unable to send traffic to kafka: ${err.message}\n${err.stack}`);
             reject(err);
+          } else {
+            resolve();
           }
-          resolve();
         });
       } else {
         if (process.env.SHOW_BUILD_LOGS) {
@@ -127,10 +128,9 @@ class Logs extends stream.Writable {
     this.logStream += event;
   }
 
-  async end() {
+  _final(next) {
     debug(`closing and flushing logs for ${this.build_uuid}`);
-    await this.flushLogsToS3();
-    await this.sendLogsToKafka('Build finished');
+    this.flushLogsToS3().then(() => this.sendLogsToKafka('Build finished').then(next).catch(next)).catch(next);
   }
 
   async send(event) {
