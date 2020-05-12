@@ -57,7 +57,7 @@ function pipeLogs(kubeLogs, kube, namespace, pod, container, stream, options) {
       }
     }
     debug(`Streaming build logs from pod ${pod} container ${container} in ${namespace}.`);
-    kubeLogs.log(namespace, pod, container, stream, async (res) => {
+    let loggingCallback = async (res) => {
       debug(`Received response for logging request from kubernetes: ${JSON.stringify(res)}`);
       try {
         if (res !== null) {
@@ -84,7 +84,10 @@ function pipeLogs(kubeLogs, kube, namespace, pod, container, stream, options) {
       } catch (e) {
         return reject(e);
       }
-    }, options || {});
+    }
+    const req = kubeLogs.log(namespace, pod, container, stream, loggingCallback, options || {});
+    req.on('close', () => debug('close called on request object.'))
+    req.on('end', () => debug('end called on request object.'));
   });
 }
 /* eslint-enable no-await-in-loop */
