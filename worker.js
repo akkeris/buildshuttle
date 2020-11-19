@@ -115,9 +115,10 @@ async function build(payload) {
           common.log(`Error, unable to authorize ${auth.serveraddress}: ${e.message}\n${e.stack}`);
         }
       }
-      if (process.env.EXTRA_DOCKER_HOST && process.env.EXTRA_DOCKER_AUTH) {
+      if (process.env.EXTRA_DOCKER_REGISTRY_CONFIG) {
         debug('adding extra docker registry');
-        buildOptions.registryconfig[process.env.EXTRA_DOCKER_HOST] = process.env.EXTRA_DOCKER_AUTH;
+        const extraDockerRegistryConfig = JSON.parse(process.env.EXTRA_DOCKER_REGISTRY_CONFIG);
+        buildOptions.registryconfig.push(extraDockerRegistryConfig);
         console.log('registryConfig====>>>>>', buildOptions.registryconfig);
       }
     }
