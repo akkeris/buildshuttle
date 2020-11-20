@@ -119,7 +119,7 @@ async function build(payload) {
         debug('adding extra docker registry');
         const extraDockerRegistryConfig = JSON.parse(process.env.EXTRA_DOCKER_REGISTRY_CONFIG);
         buildOptions.registryconfig.push(extraDockerRegistryConfig);
-        console.log('registryConfig====>>>>>', buildOptions.registryconfig);
+        debug('registryConfig====>>>>>', buildOptions.registryconfig);
       }
     }
 
