@@ -115,6 +115,12 @@ async function build(payload) {
           common.log(`Error, unable to authorize ${auth.serveraddress}: ${e.message}\n${e.stack}`);
         }
       }
+      if (process.env.EXTRA_DOCKER_REGISTRY_CONFIG) {
+        debug('adding extra docker registry');
+        const extraDockerRegistryConfig = JSON.parse(process.env.EXTRA_DOCKER_REGISTRY_CONFIG);
+        buildOptions.registryconfig.push(extraDockerRegistryConfig);
+        debug('registryConfig====>>>>>', buildOptions.registryconfig);
+      }
     }
 
     buildOptions.nocache = !!((process.env.TEST_MODE || process.env.NO_CACHE === 'true'));
