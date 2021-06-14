@@ -1,9 +1,9 @@
 /* eslint-disable func-names, no-await-in-loop */
 const request = require('request-promise-native');
 const { expect } = require('chai');
-const test = require('./support/init.js');
 
 describe('builds logs', function () {
+  const test = require('./support/init.js');
   this.timeout(100000);
   let pending = false;
   let successful = false;

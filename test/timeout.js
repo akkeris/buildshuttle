@@ -1,11 +1,11 @@
 /* eslint-disable func-names, global-require, no-await-in-loop */
 if (process.env.SMOKE_TESTS && process.env.TIMEOUT_TESTS) {
   process.env.TIMEOUT_IN_MS = 10;
-  const test = require('./support/init.js');
   const request = require('request-promise-native');
   const { expect } = require('chai');
 
   describe('creating builds', function () {
+    const test = require('./support/init.js');
     this.timeout(100000);
     let pending = false;
     let failed = false;

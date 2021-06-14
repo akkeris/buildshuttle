@@ -27,7 +27,7 @@ async function wait(time = 1000) {
   return new Promise((res) => setTimeout(res, time));
 }
 
-before(async function () {
+beforeEach(async function () {
   this.timeout(5000);
   if (process.env.NGROK_TOKEN) {
     let url = null;
@@ -46,13 +46,13 @@ before(async function () {
     await wait(1500);
     events.emit('loaded', url);
   } else {
-    running_app = child_process.spawn('node', 'index.js', { env: process.env, stdio: ['inherit', 'inherit', 'inherit'] });
+    running_app = child_process.spawn('node', ['index.js'], { env: process.env, stdio: ['inherit', 'inherit', 'inherit'] });
     await wait(1500);
-    events.emit('loaded', 'http://locahost:9000');
+    events.emit('loaded', 'http://localhost:9000');
   }
 });
 
-after(async () => {
+afterEach(async () => {
   if (running_app) {
     running_app.kill('SIGTERM');
   }
