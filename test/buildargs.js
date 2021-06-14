@@ -7,8 +7,6 @@ describe('builds arguments', function () {
   this.timeout(100000);
   let pending = false;
   let successful = false;
-  let url = null;
-  test.events.on('loaded', (u) => { url = u; });
   it('test whether build args are injected into the build', async () => {
     test.events.removeAllListeners('callback');
     const listener = (body) => {
@@ -23,7 +21,7 @@ describe('builds arguments', function () {
       }
     };
     test.events.on('callback', listener);
-    while (url === null) {
+    while (test.params.url === null) {
       await new Promise((res) => setTimeout(res, 1000));
     }
     await request(
@@ -46,7 +44,7 @@ describe('builds arguments', function () {
           },
           build_number: 1,
           build_uuid: '56bce159-87a7-437f-bed3-2da4e44dffff',
-          callback: url,
+          callback: test.params.url,
           callback_auth: 'foobar',
           build_args: {
             "@#$JLKSMDVAdjfklasdjfklasj][w]e[232\"'": 'foo',

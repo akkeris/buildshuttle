@@ -7,8 +7,6 @@ describe('builds logs', function () {
   this.timeout(100000);
   let pending = false;
   let successful = false;
-  let url = null;
-  test.events.on('loaded', (u) => { url = u; });
 
   if (process.env.SMOKE_TESTS === 'true' && !process.env.USE_KUBERNETES) {
     it('test to ensure logs arrive iteratively', async () => {
@@ -25,7 +23,7 @@ describe('builds logs', function () {
         }
       };
       test.events.on('callback', listener);
-      while (url === null) {
+      while (test.params.url === null) {
         await new Promise((res) => setTimeout(res, 1000));
       }
       await request(
@@ -48,7 +46,7 @@ describe('builds logs', function () {
             },
             build_number: 1,
             build_uuid: '56bce159-87a7-437f-bed3-2da4e44dffff',
-            callback: url,
+            callback: test.params.url,
             callback_auth: 'foobar',
             build_args: {
               "@#$JLKSMDVAdjfklasdjfklasj][w]e[232\"'": 'foo',
@@ -128,7 +126,7 @@ describe('builds logs', function () {
           },
           build_number: 1,
           build_uuid: '56bce159-87a7-437f-bed3-2da4e44dffff',
-          callback: url,
+          callback: test.params.url,
           callback_auth: 'foobar',
           build_args: {
             "@#$JLKSMDVAdjfklasdjfklasj][w]e[232\"'": 'foo',

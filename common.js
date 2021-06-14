@@ -52,10 +52,10 @@ function putObject(Key, Body) {
         Body.pipe(o);
       } else {
         o.write(Body);
+        o.end();
       }
       o.on('close', resolve);
       o.on('error', reject);
-      o.end();
     });
   }
   return (new aws.S3({ accessKeyId: process.env.S3_ACCESS_KEY, secretAccessKey: process.env.S3_SECRET_KEY }))

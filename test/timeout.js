@@ -9,8 +9,6 @@ if (process.env.SMOKE_TESTS && process.env.TIMEOUT_TESTS) {
     this.timeout(100000);
     let pending = false;
     let failed = false;
-    let url = null;
-    test.events.on('loaded', (u) => { url = u; });
 
     it('test creating a build', async () => {
       test.events.removeAllListeners('callback');
@@ -27,7 +25,7 @@ if (process.env.SMOKE_TESTS && process.env.TIMEOUT_TESTS) {
         }
       };
       test.events.on('callback', listener);
-      while (url === null) {
+      while (test.params.url === null) {
         await test.wait();
       }
       const response = await request(
@@ -50,7 +48,7 @@ if (process.env.SMOKE_TESTS && process.env.TIMEOUT_TESTS) {
             },
             build_number: 1,
             build_uuid: '56bce159-87a7-437f-bed3-2da4e44d9cf3',
-            callback: url,
+            callback: test.params.url,
             callback_auth: 'foobar',
           }),
         },

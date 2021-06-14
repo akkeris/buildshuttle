@@ -9,12 +9,9 @@ describe('creating builds', function () {
   let successful = false;
   let pending2 = false;
   let successful2 = false;
-  let url = null;
-  test.events.on('loaded', (u) => { 
-    url = u; 
-  });
 
   it('test creating a build', async () => {
+    console.log('got test.params.url', test.params.url)
     test.events.removeAllListeners('callback');
     const listener = (body) => {
       expect(body.id).equal(1);
@@ -29,8 +26,7 @@ describe('creating builds', function () {
       }
     };
     test.events.on('callback', listener);
-    while (url === null) {
-      console.log('waiting for url...')
+    while (test.params.url === null) {
       await test.wait();
     }
     const response = await request(
@@ -53,11 +49,12 @@ describe('creating builds', function () {
           },
           build_number: 1,
           build_uuid: '56bce159-87a7-437f-bed3-2da4e44d9cf3',
-          callback: url,
+          callback: test.params.url,
           callback_auth: 'foobar',
         }),
       },
     );
+    console.log('request sent');
     expect(response).to.equal('{"status":"ok"}');
     while (pending === false) {
       await test.wait();
@@ -120,7 +117,7 @@ describe('creating builds', function () {
           },
           build_number: 2,
           build_uuid: '56bce159-87a7-437f-bed3-2da4e44d9cf5',
-          callback: url,
+          callback: test.params.url,
           callback_auth: 'foobar',
         }),
       },
@@ -145,7 +142,7 @@ describe('creating builds', function () {
           },
           build_number: 3,
           build_uuid: '56bce159-87a7-437f-bed3-2da4e44d9cf6',
-          callback: url,
+          callback: test.params.url,
           callback_auth: 'foobar',
         }),
       },
