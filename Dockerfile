@@ -1,5 +1,5 @@
 FROM node:14-alpine
-RUN apk update && apk add zip && apk add tar && apk cache --purge
+RUN apk update && apk add zip && apk add tar
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
 COPY package*.json /usr/src/app/
