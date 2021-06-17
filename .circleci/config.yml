@@ -11,9 +11,9 @@ jobs:
       - run: |
           node -v
       - run: |
-          nvm install v10
+          nvm install v14
           node -v
-          nvm alias default v10
+          nvm alias default v14
       - run: |
           node -v
       - run:

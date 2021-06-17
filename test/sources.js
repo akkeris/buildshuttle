@@ -1,14 +1,12 @@
 /* eslint-disable func-names, no-await-in-loop */
 const request = require('request-promise-native');
 const { expect } = require('chai');
-const test = require('./support/init.js');
 
 describe('various sources for builds', function () {
+  const test = require('./support/init.js');
   this.timeout(100000);
   let pending = false;
   let successful = false;
-  let url = null;
-  test.events.on('loaded', (u) => { url = u; });
 
   it('test creating a build from docker', async () => {
     pending = false;
@@ -27,7 +25,7 @@ describe('various sources for builds', function () {
       }
     };
     test.events.on('callback', listener);
-    while (url === null) {
+    while (test.params.url === null) {
       await test.wait();
     }
     const response = await request(
@@ -50,7 +48,7 @@ describe('various sources for builds', function () {
           },
           build_number: 1,
           build_uuid: '56bce159-87a7-437f-bed3-2da4e44d9eee',
-          callback: url,
+          callback: test.params.url,
           callback_auth: 'foobar',
         }),
       },
@@ -82,7 +80,7 @@ describe('various sources for builds', function () {
       }
     };
     test.events.on('callback', listener);
-    while (url === null) {
+    while (test.params.url === null) {
       await test.wait();
     }
     const response = await request(
@@ -105,7 +103,7 @@ describe('various sources for builds', function () {
           },
           build_number: 1,
           build_uuid: '56bce159-87a7-437f-bed3-2da4e44d9333',
-          callback: url,
+          callback: test.params.url,
           callback_auth: 'foobar',
         }),
       },
@@ -137,7 +135,7 @@ describe('various sources for builds', function () {
       }
     };
     test.events.on('callback', listener);
-    while (url === null) {
+    while (test.params.url === null) {
       await test.wait();
     }
     const response = await request(
@@ -160,7 +158,7 @@ describe('various sources for builds', function () {
           },
           build_number: 1,
           build_uuid: '56bce159-87a7-437f-bed3-2da4e44d9fff',
-          callback: url,
+          callback: test.params.url,
           callback_auth: 'foobar',
         }),
       },

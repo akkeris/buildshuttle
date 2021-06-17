@@ -5,28 +5,27 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "test": "./node_modules/.bin/_mocha --exit"
+    "test": "TEST_MODE=true ./node_modules/.bin/_mocha --exit"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@kubernetes/client-node": "^0.11.1",
+    "@kubernetes/client-node": "^0.14.3",
     "aws-sdk": "^2.422.0",
     "body-parser": "^1.18.3",
-    "chai": "^4.2.0",
     "debug": "^4.1.1",
     "dockerode": "^2.5.8",
     "express": "^4.16.4",
     "kafka-node": "^4.0.2",
-    "ngrok": "^3.2.5",
     "request": "^2.88.0",
-    "request-promise-native": "^1.0.7",
-    "uuid": "^3.1.0"
+    "request-promise-native": "^1.0.7"
   },
   "devDependencies": {
-    "eslint": "^6.8.0",
-    "eslint-config-airbnb-base": "^14.1.0",
-    "eslint-plugin-import": "^2.20.1",
-    "mocha": "^6.1.4"
+    "chai": "^4.2.0",
+    "eslint": "^7.28.0",
+    "eslint-config-airbnb-base": "^14.2.1",
+    "eslint-plugin-import": "^2.23.4",
+    "mocha": "^9.0.0",
+    "ngrok": "^3.2.5"
   }
 }

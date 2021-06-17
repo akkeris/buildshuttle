@@ -1,9 +1,9 @@
-FROM node:12
-RUN apt-get update && apt-get install zip=3.0-11+b1 unzip tar=1.29b-1.1 --yes --no-install-recommends && apt-get clean && rm -rf /var/lib/apt/lists/*
+FROM node:14-alpine
+RUN apk update && apk add zip && apk add tar
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
 COPY package*.json /usr/src/app/
-RUN npm install
+RUN npm install --only=prod
 COPY . /usr/src/app
 EXPOSE 5000
 CMD [ "npm", "start" ]

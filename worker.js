@@ -148,7 +148,7 @@ async function build(payload) {
     await sourcePushPromise;
     process.exit(0);
   } catch (e) {
-    common.log(`Error during build (docker build process): ${e.message}\n${e.stack}\n${JSON.stringify(e)}`);
+    common.log(`Error during build (docker build process, standard build): ${e.message}\n${e.stack}\n${JSON.stringify(e)}`);
     process.exit(127);
   }
 }
