@@ -11,7 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "@kubernetes/client-node": "^0.14.3",
-    "aws-sdk": "^2.422.0",
+    "aws-sdk": "^2.935.0",
     "body-parser": "^1.18.3",
     "debug": "^4.1.1",
     "dockerode": "^2.5.8",
