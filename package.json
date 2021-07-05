@@ -13,7 +13,7 @@
     "@kubernetes/client-node": "^0.14.3",
     "aws-sdk": "^2.422.0",
     "body-parser": "^1.18.3",
-    "debug": "^4.1.1",
+    "debug": "^4.3.2",
     "dockerode": "^2.5.8",
     "express": "^4.16.4",
     "kafka-node": "^4.0.2",
