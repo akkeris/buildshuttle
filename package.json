@@ -15,7 +15,7 @@
     "body-parser": "^1.18.3",
     "debug": "^4.1.1",
     "dockerode": "^2.5.8",
-    "express": "^4.16.4",
+    "express": "^4.17.3",
     "kafka-node": "^4.0.2",
     "request": "^2.88.0",
     "request-promise-native": "^1.0.7"
